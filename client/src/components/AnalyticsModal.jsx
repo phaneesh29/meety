@@ -46,16 +46,16 @@ export default function AnalyticsModal({ roomCode, onClose }) {
     }, [roomCode, getToken]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                    <div className="flex items-center gap-2 text-slate-800">
-                        <BarChart2 className="w-5 h-5 text-indigo-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="bg-[#27292d] text-white border border-[#3c4043] rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#3c4043]">
+                    <div className="flex items-center gap-2 text-white">
+                        <BarChart2 className="w-5 h-5 text-indigo-400" />
                         <h2 className="text-xl font-semibold">Room Analytics</h2>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
+                        className="p-2 text-gray-400 hover:bg-[#3c4043] hover:text-white rounded-full transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -63,51 +63,51 @@ export default function AnalyticsModal({ roomCode, onClose }) {
                 
                 <div className="p-6 flex-1 overflow-y-auto">
                     {loading ? (
-                        <div className="flex justify-center items-center py-20 text-slate-400">Loading metrics...</div>
+                        <div className="flex justify-center items-center py-20 text-gray-500">Loading metrics...</div>
                     ) : data.length === 0 ? (
-                        <div className="flex justify-center items-center py-20 text-slate-400">No session data available yet.</div>
+                        <div className="flex justify-center items-center py-20 text-gray-400">No session data available yet.</div>
                     ) : (
                         <div className="space-y-8">
                             <div className="h-[300px] w-full mt-4">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#3c4043" />
                                         <XAxis 
                                             dataKey="name" 
                                             axisLine={false} 
                                             tickLine={false} 
-                                            tick={{ fill: '#64748B', fontSize: 12 }} 
+                                            tick={{ fill: '#9ca3af', fontSize: 12 }} 
                                             dy={10} 
                                         />
                                         <YAxis 
                                             axisLine={false} 
                                             tickLine={false} 
-                                            tick={{ fill: '#64748B', fontSize: 12 }} 
+                                            tick={{ fill: '#9ca3af', fontSize: 12 }} 
                                         />
                                         <Tooltip 
-                                            cursor={{ fill: '#F1F5F9' }}
-                                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            cursor={{ fill: '#3c4043' }}
+                                            contentStyle={{ backgroundColor: '#202124', borderRadius: '8px', border: '1px solid #3c4043', color: '#fff' }}
                                         />
-                                        <Bar dataKey="minutes" fill="#6366f1" radius={[4, 4, 0, 0]} name="Minutes in call" />
+                                        <Bar dataKey="minutes" fill="#818cf8" radius={[4, 4, 0, 0]} name="Minutes in call" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
 
-                            <div className="overflow-hidden border border-slate-200 rounded-lg">
-                                <table className="min-w-full divide-y divide-slate-200">
-                                    <thead className="bg-slate-50">
+                            <div className="overflow-hidden border border-[#3c4043] rounded-lg">
+                                <table className="min-w-full divide-y divide-[#3c4043]">
+                                    <thead className="bg-[#323639]">
                                         <tr>
-                                            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Participant</th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Time</th>
-                                            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Total Connections</th>
+                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Participant</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total Time</th>
+                                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total Connections</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-white divide-y divide-slate-200">
+                                    <tbody className="bg-[#27292d] divide-y divide-[#3c4043]">
                                         {data.map((row) => (
-                                            <tr key={row.name} className="hover:bg-slate-50/50">
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{row.name}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{row.minutes} min</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-500">{row.sessions}</td>
+                                            <tr key={row.name} className="hover:bg-[#323639]">
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{row.name}</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">{row.minutes} min</td>
+                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">{row.sessions}</td>
                                             </tr>
                                         ))}
                                     </tbody>

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Home from './pages/Home'
@@ -26,6 +26,16 @@ export default function App() {
       >
         <Route path="/dashboard" element={<Home />} />
         <Route path="/profile/*" element={<ProfilePage />} />
+      </Route>
+
+      {/* Protected Routes without Layout (Fullscreen) */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <Outlet />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/room/:roomCode" element={<RoomPage />} />
       </Route>
     </Routes>

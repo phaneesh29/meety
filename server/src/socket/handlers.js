@@ -8,6 +8,12 @@ export function registerHandlers(io, socket) {
 
     socket.on("join-room", async (roomCode, callback) => {
         try {
+            const clients = await io.in(roomCode).fetchSockets();
+            if (clients.length >= 4) {
+                if (callback) callback({ success: false, error: "Room is full (max 4 users)" });
+                return;
+            }
+
             const [room] = await db
                 .select()
                 .from(rooms)
@@ -39,9 +45,14 @@ export function registerHandlers(io, socket) {
             socket.join(roomCode);
             console.log(`User ${displayName} joined room: ${roomCode}`);
 
-            socket.to(roomCode).emit("user-joined", { displayName });
+            const existingUsers = clients.map(client => ({
+                id: client.id,
+                displayName: client.data.displayName
+            }));
 
-            if (callback) callback({ success: true, room });
+            socket.to(roomCode).emit("user-joined", { displayName, id: socket.id });
+
+            if (callback) callback({ success: true, room, users: existingUsers });
         } catch (error) {
             console.error("Join room error:", error);
             if (callback) callback({ success: false, error: "Server error" });
@@ -57,8 +68,12 @@ export function registerHandlers(io, socket) {
         }
 
         socket.leave(roomCode);
-        socket.to(roomCode).emit("user-left", { displayName });
+        socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
         console.log(`User ${displayName} left room: ${roomCode}`);
+    });
+
+    socket.on("webrtc-signal", ({ target, signal }) => {
+        socket.to(target).emit("webrtc-signal", { from: socket.id, signal, displayName });
     });
 
     socket.on("chat-message", async (roomCode, messageText) => {
@@ -125,14 +140,14 @@ export function registerHandlers(io, socket) {
                     .where(eq(roomSessions.id, sessionId));
                     
                 if (roomCode !== socket.id) { 
-                    socket.to(roomCode).emit("user-left", { displayName });
+                    socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
                 }
             }
         } else {
             // fallback if no session tracking
             for (const roomCode of socket.rooms) {
                 if (roomCode !== socket.id) { 
-                    socket.to(roomCode).emit("user-left", { displayName });
+                    socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
                 }
             }
         }
