@@ -3,12 +3,14 @@ import http from "node:http";
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { createSocketServer } from "./socket/index.js";
+import { startCronJobs } from "./cron/keep-alive.js";
 
 const server = http.createServer(app);
 const io = createSocketServer(server);
 
 server.listen(env.port, () => {
   console.log(`Server listening on port ${env.port} in ${env.nodeEnv} mode`);
+  startCronJobs();
 });
 
 function shutdown(signal) {
