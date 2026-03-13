@@ -3,11 +3,13 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import morgan from "morgan";
+import { clerkMiddleware } from "@clerk/express";
 
 import { env } from "./config/env.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { apiRateLimiter } from "./middleware/rate-limit.js";
 import apiRoutes from "./routes/index.js";
+import webhookRoutes from "./routes/webhook.routes.js";
 
 const app = express();
 
@@ -16,6 +18,9 @@ if (env.trustProxy !== false) {
 }
 
 app.disable("x-powered-by");
+
+
+app.use("/webhooks", webhookRoutes);
 
 app.use(helmet());
 app.use(
@@ -27,6 +32,12 @@ app.use(compression());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan(env.isProduction ? "combined" : "dev"));
+app.use(
+    clerkMiddleware({
+        publishableKey: env.clerkPublishableKey,
+        secretKey: env.clerkSecretKey,
+    }),
+);
 
 app.get("/", (req, res) => {
     res.json({

@@ -54,7 +54,7 @@ const allowedNodeEnvs = new Set(["development", "test", "production"]);
 const rawNodeEnv = process.env.NODE_ENV ?? "development";
 
 const nodeEnv = allowedNodeEnvs.has(rawNodeEnv) ? rawNodeEnv : "development";
-const port = parsePositiveInteger(process.env.PORT, 3000, "PORT");
+const port = parsePositiveInteger(process.env.PORT, 8080, "PORT");
 
 const corsOrigin = process.env.CORS_ORIGIN ?? "*";
 const trustProxy = parseTrustProxy(process.env.TRUST_PROXY, nodeEnv === "production" ? "1" : "false");
@@ -65,8 +65,17 @@ const rateLimitWindowMs = parsePositiveInteger(
 );
 const rateLimitMax = parsePositiveInteger(process.env.RATE_LIMIT_MAX, 100, "RATE_LIMIT_MAX");
 const databaseUrl = parseRequiredString(process.env.DATABASE_URL, "DATABASE_URL");
+const clerkSecretKey = parseRequiredString(process.env.CLERK_SECRET_KEY, "CLERK_SECRET_KEY");
+const clerkPublishableKey = parseRequiredString(
+    process.env.CLERK_PUBLISHABLE_KEY,
+    "CLERK_PUBLISHABLE_KEY",
+);
+const clerkWebhookSecret = parseRequiredString(process.env.CLERK_WEBHOOK_SECRET, "CLERK_WEBHOOK_SECRET");
 
 export const env = {
+    clerkPublishableKey,
+    clerkSecretKey,
+    clerkWebhookSecret,
     corsOrigin,
     databaseUrl,
     isDevelopment: nodeEnv === "development",
