@@ -35,16 +35,17 @@ export async function handleClerkWebhook(req, res) {
     const event = parsed.data;
 
     if (event.type === "user.created" || event.type === "user.updated") {
-        const { id, email_addresses, primary_email_address_id } = event.data;
+        const { id, email_addresses, primary_email_address_id, username } = event.data;
         const email =
             email_addresses.find((e) => e.id === primary_email_address_id)?.email_address ??
             email_addresses[0]?.email_address ??
             `${id}@users.clerk.invalid`;
+        const storedUsername = username ?? id;
 
         await db
             .insert(users)
-            .values({ clerkId: id, email })
-            .onConflictDoUpdate({ target: users.clerkId, set: { email } });
+            .values({ clerkId: id, email, username: storedUsername })
+            .onConflictDoUpdate({ target: users.clerkId, set: { email, username: storedUsername } });
     }
 
     if (event.type === "user.deleted") {

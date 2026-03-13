@@ -2,8 +2,10 @@ import http from "node:http";
 
 import app from "./app.js";
 import { env } from "./config/env.js";
+import { createSocketServer } from "./socket/index.js";
 
 const server = http.createServer(app);
+const io = createSocketServer(server);
 
 server.listen(env.port, () => {
   console.log(`Server listening on port ${env.port} in ${env.nodeEnv} mode`);
@@ -11,6 +13,8 @@ server.listen(env.port, () => {
 
 function shutdown(signal) {
   console.log(`${signal} received. Closing server.`);
+
+  io.close();
 
   server.close((error) => {
     if (error) {
