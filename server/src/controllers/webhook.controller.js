@@ -33,7 +33,6 @@ export async function handleClerkWebhook(req, res) {
     }
 
     const event = parsed.data;
-    console.log("wh eve", JSON.stringify(event));
 
     if (event.type === "user.created" || event.type === "user.updated") {
         const { id, email_addresses, primary_email_address_id } = event.data;
