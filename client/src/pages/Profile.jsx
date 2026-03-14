@@ -14,7 +14,7 @@ export default function ProfilePage() {
           path="/profile" 
           appearance={{
             elements: {
-              cardBox: "w-full max-w-none shadow-none border border-[#3c4043] rounded-xl bg-[#27292d]",
+              cardBox: "w-full max-w-none shadow-none",
               rootBox: "w-full"
             }
           }}
