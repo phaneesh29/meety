@@ -22,7 +22,7 @@ export default function Layout() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#202124] text-gray-100 font-sans">
+    <div className="min-h-screen flex flex-col bg-[#202124] text-gray-100 font-sans">
       <header className="bg-[#27292d] border-b border-[#3c4043] shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -98,9 +98,25 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+
+      <footer className="w-full border-t border-[#3c4043] mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-gray-500 text-sm">
+            © {new Date().getFullYear()} Meety. All rights reserved.
+          </p>
+          <div className="flex items-center gap-6">
+            <Link to="/privacy" className="text-sm text-gray-400 hover:text-white transition-colors">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="text-sm text-gray-400 hover:text-white transition-colors">
+              Terms of Service
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

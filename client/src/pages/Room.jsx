@@ -8,7 +8,7 @@ import AnalyticsModal from '../components/AnalyticsModal';
 import { BarChart2, Send, Mic, MicOff, Video, VideoOff, MessageSquare, Users, PhoneOff, Copy, Check, Settings, X, ChevronUp, ChevronDown, User, LogOut, LayoutDashboard } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 
-const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff }) => {
+const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOutputDevice }) => {
     const videoRef = useRef(null);
 
     useEffect(() => {
@@ -16,6 +16,13 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff }) => {
             videoRef.current.srcObject = stream;
         }
     }, [stream, isVideoOff]);
+    
+    useEffect(() => {
+        if (videoRef.current && typeof videoRef.current.setSinkId === 'function' && audioOutputDevice) {
+            videoRef.current.setSinkId(audioOutputDevice === 'default' ? '' : audioOutputDevice)
+                .catch(err => console.error("Error setting audio output device:", err));
+        }
+    }, [audioOutputDevice]);
 
     return (
         <div className="relative bg-[#3c4043] rounded-xl overflow-hidden shadow-md flex items-center justify-center h-full w-full">
@@ -46,7 +53,12 @@ export default function RoomPage() {
     const { user } = useUser();
     const { getToken } = useAuth();
     const { logout, isLoading: isLoggingOut } = useLogout();
-    const { localStream, streams, initializeMedia, cleanup, joinUsers, videoDevices, selectedVideoDevice, changeCamera } = useWebRTC(socket, roomCode);
+    const { 
+        localStream, streams, initializeMedia, cleanup, joinUsers, 
+        videoDevices, selectedVideoDevice, changeCamera,
+        audioInputDevices, selectedAudioInputDevice, changeAudioInput,
+        audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput
+    } = useWebRTC(socket, roomCode);
 
     const [joined, setJoined] = useState(false);
     const [roomInfo, setRoomInfo] = useState(null);
@@ -66,8 +78,17 @@ export default function RoomPage() {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
     const [typingUsers, setTypingUsers] = useState([]);
+    const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    const sidebarStateRef = useRef({ isOpen: false, tab: 'chat' });
+
+    useEffect(() => {
+        sidebarStateRef.current = { isOpen: isSidebarOpen, tab: sidebarTab };
+        if (isSidebarOpen && sidebarTab === 'chat') {
+            setHasUnreadMessages(false);
+        }
+    }, [isSidebarOpen, sidebarTab]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -153,6 +174,9 @@ export default function RoomPage() {
 
         const onChatReceived = (messageData) => {
             setMessages(prev => [...prev, messageData]);
+            if (!sidebarStateRef.current.isOpen || sidebarStateRef.current.tab !== 'chat') {
+                setHasUnreadMessages(true);
+            }
         };
 
         const onUserTyping = ({ displayName, isTyping }) => {
@@ -353,6 +377,7 @@ export default function RoomPage() {
                                 displayName={remote.displayName}
                                 muted={false}
                                 isVideoOff={false}
+                                audioOutputDevice={selectedAudioOutputDevice}
                             />
                         </div>
                     ))}
@@ -484,15 +509,26 @@ export default function RoomPage() {
                 </div>
 
                 <div className="flex items-center gap-3 sm:gap-4">
-                    <button
-                        onClick={toggleAudio}
-                        className={`p-2.5 sm:p-3 rounded-full flex items-center justify-center transition-all ${
-                            isAudioMuted ? 'bg-[#ea4335] hover:bg-red-600 text-white' : 'bg-[#3c4043] hover:bg-[#4a4d51] text-white'
-                        }`}
-                        title={isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
-                    >
-                        {isAudioMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                    </button>
+                    <div className="relative flex items-center group">
+                        <button
+                            onClick={toggleAudio}
+                            className={`p-2.5 sm:p-3 rounded-l-full pr-2 flex items-center justify-center transition-all ${
+                                isAudioMuted ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' : 'bg-[#3c4043] hover:bg-[#4a4d51] text-white'
+                            }`}
+                            title={isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
+                        >
+                            {isAudioMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        </button>
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className={`p-2.5 sm:p-3 rounded-r-full pl-1.5 flex items-center justify-center transition-all border-l border-black/20 ${
+                                isAudioMuted ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' : 'bg-[#3c4043] hover:bg-[#4a4d51] text-white'
+                            }`}
+                            title="Audio options"
+                        >
+                            <ChevronUp className="w-4 h-4" />
+                        </button>
+                    </div>
                     
                     <div className="relative flex items-center group">
                         <button
@@ -549,10 +585,13 @@ export default function RoomPage() {
                             if (sidebarTab !== 'chat') setSidebarTab('chat');
                             setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'chat');
                         }}
-                        className={`p-2.5 rounded-full transition-colors ${isSidebarOpen && sidebarTab === 'chat' ? 'bg-[#8ab4f8] text-[#202124]' : 'hover:bg-[#3c4043]'}`}
+                        className={`relative p-2.5 rounded-full transition-colors ${isSidebarOpen && sidebarTab === 'chat' ? 'bg-[#8ab4f8] text-[#202124]' : 'hover:bg-[#3c4043]'}`}
                         title="Chat with everyone"
                     >
                         <MessageSquare className="w-5 h-5" />
+                        {hasUnreadMessages && (
+                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-[#202124] rounded-full"></span>
+                        )}
                     </button>
                 </div>
             </div>
@@ -571,23 +610,90 @@ export default function RoomPage() {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-6">
-                            <h3 className="text-sm font-medium text-gray-300 mb-3">Camera</h3>
-                            {videoDevices.length > 0 ? (
-                                <select
-                                    className="w-full bg-[#3c4043] border border-transparent text-white text-sm rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors cursor-pointer appearance-none"
-                                    value={selectedVideoDevice || ''}
-                                    onChange={(e) => changeCamera(e.target.value)}
-                                >
-                                    {videoDevices.map((device, index) => (
-                                        <option key={device.deviceId} value={device.deviceId}>
-                                            {device.label || `Camera ${index + 1}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <p className="text-sm text-gray-400 p-3 bg-[#3c4043]/50 rounded-lg">No cameras found.</p>
-                            )}
+                        <div className="p-6 space-y-6">
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-medium text-gray-300">Microphone (Audio Input)</h3>
+                                    <button 
+                                        onClick={() => changeAudioInput('default')}
+                                        className="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded transition-colors"
+                                    >
+                                        System Default
+                                    </button>
+                                </div>
+                                {audioInputDevices.length > 0 ? (
+                                    <select
+                                        className="w-full bg-[#3c4043] border border-transparent text-white text-sm rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors cursor-pointer appearance-none"
+                                        value={selectedAudioInputDevice || 'default'}
+                                        onChange={(e) => changeAudioInput(e.target.value)}
+                                    >
+                                        <option value="default">Default</option>
+                                        {audioInputDevices.map((device, index) => (
+                                            <option key={device.deviceId} value={device.deviceId}>
+                                                {device.label || `Microphone ${index + 1}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p className="text-sm text-gray-400 p-3 bg-[#3c4043]/50 rounded-lg">No microphones found.</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-medium text-gray-300">Speaker (Audio Output)</h3>
+                                    <button 
+                                        onClick={() => changeAudioOutput('default')}
+                                        className="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded transition-colors"
+                                    >
+                                        System Default
+                                    </button>
+                                </div>
+                                {audioOutputDevices.length > 0 ? (
+                                    <select
+                                        className="w-full bg-[#3c4043] border border-transparent text-white text-sm rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors cursor-pointer appearance-none"
+                                        value={selectedAudioOutputDevice || 'default'}
+                                        onChange={(e) => changeAudioOutput(e.target.value)}
+                                    >
+                                        <option value="default">Default</option>
+                                        {audioOutputDevices.map((device, index) => (
+                                            <option key={device.deviceId} value={device.deviceId}>
+                                                {device.label || `Speaker ${index + 1}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p className="text-sm text-gray-400 p-3 bg-[#3c4043]/50 rounded-lg">No speakers found. Ensure browser permissions allow it.</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-medium text-gray-300">Camera (Video Input)</h3>
+                                    <button 
+                                        onClick={() => changeCamera('')}
+                                        className="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded transition-colors"
+                                    >
+                                        System Default
+                                    </button>
+                                </div>
+                                {videoDevices.length > 0 ? (
+                                    <select
+                                        className="w-full bg-[#3c4043] border border-transparent text-white text-sm rounded-lg p-3 outline-none focus:border-indigo-500 transition-colors cursor-pointer appearance-none"
+                                        value={selectedVideoDevice || ''}
+                                        onChange={(e) => changeCamera(e.target.value)}
+                                    >
+                                        <option value="">Default</option>
+                                        {videoDevices.map((device, index) => (
+                                            <option key={device.deviceId} value={device.deviceId}>
+                                                {device.label || `Camera ${index + 1}`}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p className="text-sm text-gray-400 p-3 bg-[#3c4043]/50 rounded-lg">No cameras found.</p>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

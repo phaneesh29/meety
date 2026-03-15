@@ -15,6 +15,13 @@
       "when": 1773418737611,
       "tag": "0001_productive_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773468677597,
+      "tag": "0002_bright_kid_colt",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,10 @@ const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' }
     ]
 };
 
@@ -15,17 +19,40 @@ export function useWebRTC(socket, roomCode) {
     const [streams, setStreams] = useState([]); // Array of { id: string, stream: MediaStream, displayName: string }
     const [videoDevices, setVideoDevices] = useState([]);
     const [selectedVideoDevice, setSelectedVideoDevice] = useState(null);
+    const [audioInputDevices, setAudioInputDevices] = useState([]);
+    const [selectedAudioInputDevice, setSelectedAudioInputDevice] = useState('default');
+    const [audioOutputDevices, setAudioOutputDevices] = useState([]);
+    const [selectedAudioOutputDevice, setSelectedAudioOutputDevice] = useState('default');
 
     const initializeMedia = useCallback(async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                }, 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } 
+            });
             
             const devices = await navigator.mediaDevices.enumerateDevices();
             const vDevices = devices.filter(device => device.kind === 'videoinput');
-            setVideoDevices(vDevices);
+            const aInputDevices = devices.filter(device => device.kind === 'audioinput');
+            const aOutputDevices = devices.filter(device => device.kind === 'audiooutput');
             
-            const currentTrackId = stream.getVideoTracks()[0]?.getSettings().deviceId;
-            setSelectedVideoDevice(currentTrackId || vDevices[0]?.deviceId);
+            setVideoDevices(vDevices);
+            setAudioInputDevices(aInputDevices);
+            setAudioOutputDevices(aOutputDevices);
+            
+            const currentVideoTrackId = stream.getVideoTracks()[0]?.getSettings().deviceId;
+            setSelectedVideoDevice(currentVideoTrackId || vDevices[0]?.deviceId);
+            
+            const currentAudioTrackId = stream.getAudioTracks()[0]?.getSettings().deviceId;
+            setSelectedAudioInputDevice(currentAudioTrackId || 'default');
 
             localStreamRef.current = stream;
             setLocalStream(stream);
@@ -38,9 +65,19 @@ export function useWebRTC(socket, roomCode) {
 
     const changeCamera = useCallback(async (deviceId) => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { deviceId: { exact: deviceId } }
-            });
+            const constraints = {
+                video: (!deviceId || deviceId === 'default') ? {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                } : { 
+                    deviceId: { exact: deviceId },
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                }
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
             const newVideoTrack = stream.getVideoTracks()[0];
             const oldVideoTrack = localStreamRef.current?.getVideoTracks()[0];
@@ -49,9 +86,16 @@ export function useWebRTC(socket, roomCode) {
                 // Preserve the disabled state
                 newVideoTrack.enabled = oldVideoTrack.enabled;
 
-                Object.values(peersRef.current).forEach(peer => {
-                    // replaceTrack is available in simple-peer
-                    peer.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
+                // Loop through all peers and use simple-peer's replaceTrack mechanism
+                Object.keys(peersRef.current).forEach(peerId => {
+                    const peer = peersRef.current[peerId];
+                    if (peer && typeof peer.replaceTrack === 'function') {
+                        try {
+                            peer.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
+                        } catch (err) {
+                            console.error('Error replacing track for peer', peerId, err);
+                        }
+                    }
                 });
                 
                 oldVideoTrack.stop();
@@ -68,6 +112,53 @@ export function useWebRTC(socket, roomCode) {
         } catch (error) {
             console.error('Error changing camera:', error);
         }
+    }, []);
+
+    const changeAudioInput = useCallback(async (deviceId) => {
+        try {
+            const constraints = {
+                audio: deviceId === 'default' ? {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                } : { 
+                    deviceId: { exact: deviceId },
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            const newAudioTrack = stream.getAudioTracks()[0];
+            const oldAudioTrack = localStreamRef.current?.getAudioTracks()[0];
+
+            if (oldAudioTrack && newAudioTrack) {
+                // Preserve the disabled state
+                newAudioTrack.enabled = oldAudioTrack.enabled;
+
+                Object.values(peersRef.current).forEach(peer => {
+                    peer.replaceTrack(oldAudioTrack, newAudioTrack, localStreamRef.current);
+                });
+                
+                oldAudioTrack.stop();
+                
+                const newStream = new MediaStream([
+                    ...localStreamRef.current.getVideoTracks(),
+                    newAudioTrack
+                ]);
+                
+                localStreamRef.current = newStream;
+                setLocalStream(newStream);
+                setSelectedAudioInputDevice(deviceId);
+            }
+        } catch (error) {
+            console.error('Error changing audio input:', error);
+        }
+    }, []);
+
+    const changeAudioOutput = useCallback((deviceId) => {
+        setSelectedAudioOutputDevice(deviceId);
     }, []);
 
     const createPeer = useCallback((id, stream, isInitiator, displayName) => {
@@ -144,5 +235,10 @@ export function useWebRTC(socket, roomCode) {
         }
     }, [removePeer]);
 
-    return { localStream, streams, initializeMedia, cleanup, joinUsers, videoDevices, selectedVideoDevice, changeCamera };
+    return { 
+        localStream, streams, initializeMedia, cleanup, joinUsers, 
+        videoDevices, selectedVideoDevice, changeCamera,
+        audioInputDevices, selectedAudioInputDevice, changeAudioInput,
+        audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput
+    };
 }

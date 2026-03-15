@@ -25,7 +25,6 @@ export function registerHandlers(io, socket) {
                 return;
             }
 
-            // Find User DB id for tracking session
             const [dbUser] = await db
                 .select()
                 .from(users)
@@ -138,15 +137,15 @@ export function registerHandlers(io, socket) {
                 await db.update(roomSessions)
                     .set({ leftAt: new Date() })
                     .where(eq(roomSessions.id, sessionId));
-                    
-                if (roomCode !== socket.id) { 
+
+                if (roomCode !== socket.id) {
                     socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
                 }
             }
         } else {
             // fallback if no session tracking
             for (const roomCode of socket.rooms) {
-                if (roomCode !== socket.id) { 
+                if (roomCode !== socket.id) {
                     socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
                 }
             }
