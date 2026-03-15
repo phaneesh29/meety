@@ -8,6 +8,7 @@ import ProfilePage from './pages/Profile'
 import RoomPage from './pages/Room'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
+import FeedbackPage from './pages/Feedback'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
       >
         <Route path="/dashboard" element={<Home />} />
         <Route path="/profile/*" element={<ProfilePage />} />
+        <Route path="/feedback" element={<FeedbackPage />} />
       </Route>
 
       {/* Protected Routes without Layout (Fullscreen) */}

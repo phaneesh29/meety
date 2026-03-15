@@ -1,5 +1,4 @@
 import { UserProfile } from '@clerk/react'
-import FeedbackForm from '../components/FeedbackForm';
 
 export default function ProfilePage() {
   return (
@@ -20,8 +19,6 @@ export default function ProfilePage() {
           }}
         />
       </div>
-      
-      <FeedbackForm />
     </div>
   )
 }
