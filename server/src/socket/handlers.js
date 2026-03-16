@@ -130,6 +130,18 @@ export function registerHandlers(io, socket) {
     socket.on("typing-stop", (roomCode) => {
         socket.to(roomCode).emit("user-typing", { displayName, isTyping: false });
     });
+    
+    socket.on("screen-share-start", (roomCode) => {
+        socket.to(roomCode).emit("screen-share-started", { id: socket.id });
+    });
+
+    socket.on("screen-share-stop", (roomCode) => {
+        socket.to(roomCode).emit("screen-share-stopped", { id: socket.id });
+    });
+
+    socket.on("video-toggle", (roomCode, isVideoMuted) => {
+        socket.to(roomCode).emit("user-video-toggled", { id: socket.id, isVideoMuted });
+    });
 
     socket.on("disconnecting", async () => {
         if (socket.data.sessions) {

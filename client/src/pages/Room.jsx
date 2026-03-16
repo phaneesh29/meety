@@ -5,18 +5,21 @@ import { useSocket } from '../hooks/useSocket';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { useLogout } from '../hooks/useLogout';
 import AnalyticsModal from '../components/AnalyticsModal';
-import { BarChart2, Send, Mic, MicOff, Video, VideoOff, MessageSquare, Users, PhoneOff, Copy, Check, Settings, X, ChevronUp, ChevronDown, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { BarChart2, Send, Mic, MicOff, Video, VideoOff, MessageSquare, Users, PhoneOff, Copy, Check, Settings, X, ChevronUp, ChevronDown, User, LogOut, LayoutDashboard, MonitorUp, MonitorOff } from 'lucide-react';
 import { apiRequest } from '../lib/api';
 
-const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOutputDevice }) => {
+const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOutputDevice, isScreen }) => {
     const videoRef = useRef(null);
 
     useEffect(() => {
         if (videoRef.current && stream && !isVideoOff) {
+            // Re-assigning srcObject forces the media element to pick up underlying track replacements (e.g. screen sharing resolution changes)
+            videoRef.current.srcObject = null;
             videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(err => console.error("Error playing video:", err));
         }
-    }, [stream, isVideoOff]);
-    
+    }, [stream, isVideoOff, isScreen]);
+
     useEffect(() => {
         if (videoRef.current && typeof videoRef.current.setSinkId === 'function' && audioOutputDevice) {
             videoRef.current.setSinkId(audioOutputDevice === 'default' ? '' : audioOutputDevice)
@@ -26,8 +29,8 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOut
 
     return (
         <div className="relative bg-black/40 backdrop-blur-md rounded-2xl overflow-hidden flex items-center justify-center h-full w-full border border-white/10 shadow-2xl transition-all duration-300 hover:border-white/20 group">
-            {isVideoOff ? (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-white/10 text-indigo-300 flex items-center justify-center font-bold text-4xl sm:text-6xl shadow-2xl backdrop-blur-xl">
+            {isVideoOff && !isScreen ? (
+                <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-white/10 text-indigo-300 flex items-center justify-center font-bold text-3xl sm:text-5xl shadow-2xl backdrop-blur-xl">
                     {displayName.charAt(0).toUpperCase()}
                 </div>
             ) : (
@@ -36,11 +39,13 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOut
                     autoPlay
                     playsInline
                     muted={isLocal || muted}
-                    className={`w-full h-full object-cover ${isLocal ? 'scale-x-[-1]' : ''}`}
+                    className={`w-full h-full ${isScreen ? 'object-contain' : 'object-cover'} ${isLocal && !isScreen ? 'scale-x-[-1]' : ''}`}
                 />
             )}
-            <div className={`absolute bottom-4 left-4 ${isVideoOff ? 'bg-transparent text-gray-300' : 'bg-black/60 text-white backdrop-blur-md border border-white/10'} px-4 py-2 rounded-xl text-sm font-semibold transition-all group-hover:scale-105`}>
-                {displayName} {isLocal && '(You)'}
+            <div className={`absolute bottom-2 left-2 sm:bottom-4 sm:left-4 ${isVideoOff && !isScreen ? 'bg-black/40 text-gray-300' : 'bg-black/60 text-white'} backdrop-blur-md border border-white/10 px-2 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all group-hover:scale-105 flex items-center gap-1.5 sm:gap-2 max-w-[calc(100%-1rem)] sm:max-w-[calc(100%-2rem)] z-10`}>
+                {isScreen && <MonitorUp className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400 shrink-0" />}
+                <span className="truncate">{displayName}</span>
+                {isLocal && <span className="shrink-0 text-white/70"> (You)</span>}
             </div>
         </div>
     );
@@ -57,7 +62,8 @@ export default function RoomPage() {
         localStream, streams, initializeMedia, cleanup, joinUsers, 
         videoDevices, selectedVideoDevice, changeCamera,
         audioInputDevices, selectedAudioInputDevice, changeAudioInput,
-        audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput
+        audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput,
+        isScreenSharing, toggleScreenShare
     } = useWebRTC(socket, roomCode);
 
     const [joined, setJoined] = useState(false);
@@ -74,6 +80,14 @@ export default function RoomPage() {
     
     const [isAudioMuted, setIsAudioMuted] = useState(false);
     const [isVideoMuted, setIsVideoMuted] = useState(false);
+    const [remoteVideoStates, setRemoteVideoStates] = useState({});
+    const isVideoMutedRef = useRef(false);
+    const [screenSharers, setScreenSharers] = useState(new Set());
+    const isScreenSharingRef = useRef(false);
+
+    useEffect(() => {
+        isScreenSharingRef.current = isScreenSharing;
+    }, [isScreenSharing]);
 
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState("");
@@ -164,12 +178,23 @@ export default function RoomPage() {
         if (!socket) return;
 
         // Listen for others joining/leaving
-        const onUserJoined = ({ displayName, id }) => {
+        const onUserJoined = ({ displayName }) => {
             setNotifications(prev => [...prev, `${displayName} joined`]);
+            if (isVideoMutedRef.current) {
+                socket.emit('video-toggle', roomCode, isVideoMutedRef.current);
+            }
+            if (isScreenSharingRef.current) {
+                socket.emit('screen-share-start', roomCode);
+            }
         };
 
-        const onUserLeft = ({ displayName }) => {
+        const onUserLeft = ({ displayName, id }) => {
             setNotifications(prev => [...prev, `${displayName} left`]);
+            setRemoteVideoStates(prev => {
+                const next = { ...prev };
+                delete next[id];
+                return next;
+            });
         };
 
         const onChatReceived = (messageData) => {
@@ -190,10 +215,29 @@ export default function RoomPage() {
             });
         };
 
+        const onScreenShareStarted = ({ id }) => {
+            setScreenSharers(prev => new Set([...prev, id]));
+        };
+
+        const onScreenShareStopped = ({ id }) => {
+            setScreenSharers(prev => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        };
+
+        const onUserVideoToggled = ({ id, isVideoMuted }) => {
+            setRemoteVideoStates(prev => ({ ...prev, [id]: isVideoMuted }));
+        };
+
         socket.on('user-joined', onUserJoined);
         socket.on('user-left', onUserLeft);
         socket.on('chat-received', onChatReceived);
         socket.on('user-typing', onUserTyping);
+        socket.on('screen-share-started', onScreenShareStarted);
+        socket.on('screen-share-stopped', onScreenShareStopped);
+        socket.on('user-video-toggled', onUserVideoToggled);
 
         return () => {
             mounted = false;
@@ -201,6 +245,9 @@ export default function RoomPage() {
             socket.off('user-left', onUserLeft);
             socket.off('chat-received', onChatReceived);
             socket.off('user-typing', onUserTyping);
+            socket.off('screen-share-started', onScreenShareStarted);
+            socket.off('screen-share-stopped', onScreenShareStopped);
+            socket.off('user-video-toggled', onUserVideoToggled);
             socket.emit('leave-room', roomCode);
             cleanup();
         };
@@ -216,7 +263,12 @@ export default function RoomPage() {
     const toggleVideo = () => {
         if (localStream) {
             localStream.getVideoTracks().forEach(track => track.enabled = !track.enabled);
-            setIsVideoMuted(!localStream.getVideoTracks()[0]?.enabled);
+            const newMuted = !localStream.getVideoTracks()[0]?.enabled;
+            setIsVideoMuted(newMuted);
+            isVideoMutedRef.current = newMuted;
+            if (socket) {
+                socket.emit('video-toggle', roomCode, newMuted);
+            }
         }
     };
 
@@ -279,14 +331,17 @@ export default function RoomPage() {
     }
 
     const participants = [
-        { id: 'local', displayName: user?.firstName || 'You' },
-        ...streams.map(s => ({ id: s.id, displayName: s.displayName }))
+        { id: 'local', displayName: user?.username || 'You', stream: localStream, isLocal: true },
+        ...streams.map(s => ({ id: s.id, displayName: s.displayName, stream: s.stream, isLocal: false }))
     ];
 
-    // Calculate grid classes based on number of participants (max 4)
+    const screenSharingParticipant = participants.find(p => p.id === 'local' ? isScreenSharing : screenSharers.has(p.id));
+
+    // Calculate grid classes based on number of participants
     const getGridClass = (count) => {
+        if (screenSharingParticipant) return 'grid-cols-1 grid-rows-1'; // the big one
         if (count === 1) return 'grid-cols-1 grid-rows-1';
-        if (count === 2) return 'grid-cols-2 grid-rows-1';
+        if (count === 2) return 'grid-cols-1 md:grid-cols-2 grid-rows-2 md:grid-rows-1';
         if (count === 3 || count === 4) return 'grid-cols-2 grid-rows-2';
         return 'grid-cols-2 grid-rows-2';
     };
@@ -298,29 +353,29 @@ export default function RoomPage() {
             
             <div className="flex flex-1 overflow-hidden p-2 sm:p-4 gap-4 relative z-10">
                 {/* Floating Top Info Overlay */}
-                <div className="absolute top-4 sm:top-6 left-4 sm:left-6 z-20 flex items-center gap-3 bg-white/5 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/10 shadow-2xl transition-all">
+                <div className="absolute top-4 sm:top-6 left-4 sm:left-6 z-20 flex items-center gap-2 sm:gap-3 bg-slate-900/60 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-white/10 shadow-sm transition-all text-white">
                     <button
                         onClick={() => navigate('/dashboard')}
-                        className="text-sm font-semibold text-gray-300 hover:text-white transition-colors flex items-center gap-2"
+                        className="text-xs sm:text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2"
                         title="Back to Dashboard"
                     >
-                        <LayoutDashboard className="w-5 h-5text-indigo-400" />
+                        <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
                         <span className="hidden sm:inline tracking-wide">Dashboard</span>
                     </button>
                     
-                    <div className="h-5 w-[2px] bg-white/10 mx-2 rounded-full"></div>
+                    <div className="h-4 w-[1px] bg-white/20 mx-1 sm:mx-2"></div>
                     
                     <div className="relative" ref={profileDropdownRef}>
                         <button
                             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                            className="flex items-center gap-2 hover:bg-white/10 p-1 pr-2 rounded-full transition-colors focus:outline-none"
+                            className="flex items-center gap-2 hover:bg-white/10 p-0.5 pr-2 rounded-full transition-colors focus:outline-none"
                         >
                             <img 
                                 src={user?.imageUrl} 
                                 alt="Profile" 
-                                className="w-8 h-8 rounded-full border-2 border-white/20 object-cover bg-indigo-500/20 shadow-md"
+                                className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-white/20 object-cover bg-indigo-500/20"
                             />
-                            <ChevronDown className={`w-4 h-4 text-gray-300 transition-transform duration-300 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+                            <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 text-gray-300 transition-transform duration-300 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {isProfileDropdownOpen && (
@@ -332,7 +387,7 @@ export default function RoomPage() {
                                         className="w-12 h-12 rounded-full border-2 border-indigo-500/50 shadow-lg"
                                     />
                                     <div className="flex flex-col truncate">
-                                        <span className="text-[15px] font-semibold text-white truncate">{user?.fullName || user?.firstName || 'User'}</span>
+                                        <span className="text-[15px] font-semibold text-white truncate">{user?.username || 'User'}</span>
                                         <span className="text-xs text-gray-400 truncate mt-0.5">{user?.primaryEmailAddress?.emailAddress}</span>
                                     </div>
                                 </div>
@@ -362,30 +417,54 @@ export default function RoomPage() {
                 </div>
 
                 {/* Video Grid Section */}
-                <div className={`flex-1 grid gap-4 transition-all duration-300 ${getGridClass(participants.length)}`}>
-                    {localStream && (
-                        <div className="w-full h-full min-h-0">
-                            <VideoPlayer 
-                                stream={localStream} 
-                                isLocal={true} 
-                                displayName={user?.firstName || 'You'}
-                                muted={isAudioMuted}
-                                isVideoOff={isVideoMuted}
-                            />
+                <div className={`flex-1 flex gap-4 transition-all duration-300 relative ${screenSharingParticipant ? 'flex-col md:flex-row' : ''}`}>
+                    {screenSharingParticipant ? (
+                        <>
+                            {/* Main Screen Share Area */}
+                            <div className="flex-1 w-full h-full min-h-0 bg-black/40 rounded-2xl overflow-hidden border border-white/10 shadow-2xl flex items-center justify-center">
+                                <VideoPlayer 
+                                    key={`screen-${screenSharingParticipant.id}-${screenSharers.has(screenSharingParticipant.id)}`}
+                                    stream={screenSharingParticipant.stream} 
+                                    isLocal={screenSharingParticipant.isLocal} 
+                                    displayName={`${screenSharingParticipant.displayName}'s screen`}
+                                    muted={screenSharingParticipant.isLocal ? isAudioMuted : false}
+                                    isVideoOff={false}
+                                    isScreen={true}
+                                />
+                            </div>
+
+                            {/* Sidebar for other participants */}
+                            <div className={`w-full md:w-64 flex-shrink-0 flex gap-2 md:flex-col overflow-x-auto md:overflow-y-auto hidden sm:flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']`}>
+                                {participants.filter(p => p.id !== screenSharingParticipant.id).map(p => (
+                                    <div key={p.id} className="w-32 md:w-full h-24 md:h-36 min-h-0 flex-shrink-0">
+                                        <VideoPlayer
+                                            stream={p.stream}
+                                            isLocal={p.isLocal}
+                                            displayName={p.displayName}
+                                            muted={p.isLocal ? isAudioMuted : false}
+                                            isVideoOff={p.isLocal ? isVideoMuted : remoteVideoStates[p.id] || false}
+                                            audioOutputDevice={selectedAudioOutputDevice}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <div className={`w-full h-full grid gap-4 transition-all duration-300 ${getGridClass(participants.length)}`}>
+                            {participants.map(p => (
+                                <div key={p.id} className={`w-full h-full min-h-0 ${participants.length > 2 ? 'aspect-video object-cover' : 'aspect-video sm:aspect-auto'}`}>
+                                    <VideoPlayer
+                                        stream={p.stream}
+                                        isLocal={p.isLocal}
+                                        displayName={p.displayName}
+                                        muted={p.isLocal ? isAudioMuted : false}
+                                        isVideoOff={p.isLocal ? isVideoMuted : remoteVideoStates[p.id] || false}
+                                        audioOutputDevice={selectedAudioOutputDevice}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     )}
-                    {streams.map(remote => (
-                        <div key={remote.id} className="w-full h-full min-h-0">
-                            <VideoPlayer
-                                stream={remote.stream}
-                                isLocal={false}
-                                displayName={remote.displayName}
-                                muted={false}
-                                isVideoOff={false}
-                                audioOutputDevice={selectedAudioOutputDevice}
-                            />
-                        </div>
-                    ))}
                 </div>
 
                 {/* Right Sidebar: Chat & People */}
@@ -511,15 +590,15 @@ export default function RoomPage() {
             </div>
 
             {/* Bottom Controls Bar */}
-            <div className="h-20 sm:h-[88px] bg-black/40 backdrop-blur-2xl flex items-center justify-between px-4 sm:px-8 border-t border-white/10 z-20">
-                <div className="flex flex-1 text-white text-sm">
-                    <div className="flex items-center gap-4 bg-white/5 rounded-2xl px-4 py-2 hover:bg-white/10 transition-colors border border-white/5">
-                        <span className="font-bold text-[16px] hidden sm:block tracking-wide">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <div className="w-[2px] h-4 bg-white/20 hidden sm:block rounded-full"></div>
-                        <span className="font-mono text-indigo-300 break-words max-w-[100px] sm:max-w-none truncate">{roomCode}</span>
+            <div className="h-auto min-h-[80px] sm:min-h-[88px] w-full flex flex-wrap items-center justify-between px-2 sm:px-4 md:px-8 py-3 sm:py-0 z-20 gap-y-3 sm:gap-y-0 relative bg-slate-900 border-t border-white/5">
+                <div className="hidden md:flex flex-1 text-white text-sm order-1">
+                    <div className="flex items-center gap-4 px-2 py-1">
+                        <span className="font-medium text-[15px] hidden xl:block tracking-wide text-gray-200">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <div className="w-[1px] h-4 bg-white/20 hidden xl:block"></div>
+                        <span className="font-mono font-medium text-gray-300 break-words max-w-[100px] lg:max-w-none truncate">{roomCode}</span>
                         <button
                             onClick={handleCopyUrl}
-                            className="p-1.5 ml-1 text-gray-400 hover:text-white bg-white/5 hover:bg-white/20 rounded-lg transition-all shrink-0"
+                            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-all shrink-0"
                             title="Copy meeting info"
                         >
                             {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
@@ -527,99 +606,126 @@ export default function RoomPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 sm:gap-4 lg:gap-6">
-                    <div className="relative flex items-center group shadow-lg">
-                        <button
-                            onClick={toggleAudio}
-                            className={`p-3 sm:p-4 rounded-l-2xl pr-3 flex items-center justify-center transition-all duration-300 ${
-                                isAudioMuted 
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' 
-                                : 'bg-white/10 hover:bg-white/20 text-white border border-white/5'
-                            }`}
-                            title={isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
-                        >
-                            {isAudioMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-                        </button>
-                        <button
-                            onClick={() => setShowSettings(true)}
-                            className={`p-3 sm:p-4 rounded-r-2xl pl-2 flex items-center justify-center transition-all duration-300 border-l border-black/30 ${
-                                isAudioMuted 
-                                ? 'bg-red-500 hover:bg-red-600 text-white' 
-                                : 'bg-white/10 hover:bg-white/20 text-white'
-                            }`}
-                            title="Audio options"
-                        >
-                            <ChevronUp className="w-4 h-4" />
-                        </button>
+                <div className="flex items-center justify-center gap-2 sm:gap-3 lg:gap-4 w-full md:w-auto flex-1 md:flex-none order-last md:order-2">
+                    <div className="relative flex items-center">
+                        <div className="flex items-center bg-[#3c4043] rounded-full hover:bg-[#434649] transition-all overflow-hidden border border-transparent shadow-sm hover:shadow-md">
+                            <button
+                                onClick={toggleAudio}
+                                className={`p-3 sm:p-4 flex items-center justify-center transition-colors ${
+                                    isAudioMuted 
+                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    : 'text-white'
+                                }`}
+                                title={isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
+                            >
+                                {isAudioMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                            </button>
+                            <div className={`w-[1px] h-6 ${isAudioMuted ? 'bg-white/30' : 'bg-white/20'} mx-0.5`}></div>
+                            <button
+                                onClick={() => setShowSettings(true)}
+                                className={`p-3 sm:p-4 pr-3 sm:pr-4 pl-2 sm:pl-2 flex items-center justify-center transition-colors ${
+                                    isAudioMuted 
+                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    : 'text-gray-300 hover:text-white'
+                                }`}
+                                title="Audio options"
+                            >
+                                <ChevronUp className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                     
-                    <div className="relative flex items-center group shadow-lg">
-                        <button
-                            onClick={toggleVideo}
-                            className={`p-3 sm:p-4 rounded-l-2xl pr-3 flex items-center justify-center transition-all duration-300 ${
-                                isVideoMuted 
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-[0_0_15px_rgba(239,68,68,0.5)]' 
-                                : 'bg-white/10 hover:bg-white/20 text-white border border-white/5'
-                            }`}
-                            title={isVideoMuted ? "Turn on camera" : "Turn off camera"}
-                        >
-                            {isVideoMuted ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
-                        </button>
-                        <button
-                            onClick={() => setShowSettings(true)}
-                            className={`p-3 sm:p-4 rounded-r-2xl pl-2 flex items-center justify-center transition-all duration-300 border-l border-black/30 ${
-                                isVideoMuted 
-                                ? 'bg-red-500 hover:bg-red-600 text-white' 
-                                : 'bg-white/10 hover:bg-white/20 text-white'
-                            }`}
-                            title="Camera options"
-                        >
-                            <ChevronUp className="w-4 h-4" />
-                        </button>
+                    <div className="relative flex items-center">
+                        <div className="flex items-center bg-[#3c4043] rounded-full hover:bg-[#434649] transition-all overflow-hidden border border-transparent shadow-sm hover:shadow-md">
+                            <button
+                                onClick={toggleVideo}
+                                className={`p-3 sm:p-4 flex items-center justify-center transition-colors ${
+                                    isVideoMuted 
+                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    : 'text-white'
+                                }`}
+                                title={isVideoMuted ? "Turn on camera" : "Turn off camera"}
+                            >
+                                {isVideoMuted ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                            </button>
+                            <div className={`w-[1px] h-6 ${isVideoMuted ? 'bg-white/30' : 'bg-white/20'} mx-0.5`}></div>
+                            <button
+                                onClick={() => setShowSettings(true)}
+                                className={`p-3 sm:p-4 pr-3 sm:pr-4 pl-2 sm:pl-2 flex items-center justify-center transition-colors ${
+                                    isVideoMuted 
+                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    : 'text-gray-300 hover:text-white'
+                                }`}
+                                title="Camera options"
+                            >
+                                <ChevronUp className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
+
+                    <button
+                        onClick={toggleScreenShare}
+                        className={`p-3 sm:p-4 rounded-full flex items-center justify-center transition-all shadow-sm hover:shadow-md ${
+                            isScreenSharing 
+                            ? 'bg-indigo-500 hover:bg-indigo-600 text-white' 
+                            : 'bg-[#3c4043] hover:bg-[#434649] text-white'
+                        }`}
+                        title={isScreenSharing ? "Stop sharing screen" : "Share screen"}
+                    >
+                        {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
+                    </button>
 
                     <button
                         onClick={() => navigate('/dashboard')}
-                        className="px-6 sm:px-8 py-3 sm:py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl transition-all duration-300 flex items-center gap-2 shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_30px_rgba(239,68,68,0.6)] hover:-translate-y-1"
+                        className="px-6 sm:px-8 py-3 sm:py-4 bg-[#ea4335] hover:bg-[#d93025] text-white rounded-full transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md ml-2"
                         title="Leave call"
                     >
-                        <PhoneOff className="w-6 h-6" />
+                        <PhoneOff className="w-5 h-5" />
                     </button>
                 </div>
 
-                <div className="flex flex-1 justify-end gap-2 sm:gap-4 text-white">
-                    {roomInfo?.createdBy === user?.id && (
-                        <button
-                            onClick={() => setShowAnalytics(true)}
-                            className="p-3 sm:p-4 rounded-2xl bg-white/5 hover:bg-white/20 transition-all duration-300 border border-transparent hover:border-white/10"
-                            title="Analytics"
-                        >
-                            <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
+                <div className="flex flex-1 justify-between md:justify-end items-center gap-2 sm:gap-3 text-white w-full md:w-auto order-1 md:order-3">
+                    <div className="md:hidden flex items-center gap-2 px-2">
+                        <span className="font-mono font-medium text-[12px] sm:text-sm text-gray-300 truncate max-w-[90px] sm:max-w-[120px]">{roomCode}</span>
+                        <button onClick={handleCopyUrl} className="p-1.5 text-gray-400 hover:text-white" title="Copy room code">
+                            {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
-                    )}
-                    <button
-                        onClick={() => {
-                            if (sidebarTab !== 'people') setSidebarTab('people');
-                            setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'people');
-                        }}
-                        className={`p-3 sm:p-4 rounded-2xl transition-all duration-300 border border-transparent ${isSidebarOpen && sidebarTab === 'people' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-white/5 hover:bg-white/20 hover:border-white/10'}`}
-                        title="Show everyone"
-                    >
-                        <Users className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                    <button
-                        onClick={() => {
-                            if (sidebarTab !== 'chat') setSidebarTab('chat');
-                            setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'chat');
-                        }}
-                        className={`relative p-3 sm:p-4 rounded-2xl transition-all duration-300 border border-transparent ${isSidebarOpen && sidebarTab === 'chat' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.5)]' : 'bg-white/5 hover:bg-white/20 hover:border-white/10'}`}
-                        title="Chat with everyone"
-                    >
-                        <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
-                        {hasUnreadMessages && (
-                            <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 border-2 border-[#1e293b] rounded-full animate-pulse"></span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {roomInfo?.createdBy === user?.id && (
+                            <button
+                                onClick={() => setShowAnalytics(true)}
+                                className="p-3 text-gray-300 hover:text-white hover:bg-white/10 rounded-full transition-all"
+                                title="Analytics"
+                            >
+                                <BarChart2 className="w-5 h-5" />
+                            </button>
                         )}
-                    </button>
+                        <button
+                            onClick={() => {
+                                if (sidebarTab !== 'people') setSidebarTab('people');
+                                setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'people');
+                            }}
+                            className={`p-3 rounded-full transition-all ${isSidebarOpen && sidebarTab === 'people' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
+                            title="Show everyone"
+                        >
+                            <Users className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (sidebarTab !== 'chat') setSidebarTab('chat');
+                                setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'chat');
+                            }}
+                            className={`relative p-3 rounded-full transition-all ${isSidebarOpen && sidebarTab === 'chat' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
+                            title="Chat with everyone"
+                        >
+                            <MessageSquare className="w-5 h-5" />
+                            {hasUnreadMessages && (
+                                <span className="absolute top-[8px] right-[8px] w-2.5 h-2.5 bg-[#ea4335] border-2 border-slate-900 rounded-full"></span>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
             

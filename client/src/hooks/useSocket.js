@@ -28,6 +28,14 @@ export function useSocket() {
             newSocket.on('disconnect', (reason) => {
                 console.log('socket disconnected:', reason);
                 setIsConnected(false);
+                if (reason === 'ping timeout' || reason === 'transport close' || reason === 'transport error') {
+                    // Try to reconnect if disconnected due to network or backgrounding
+                    setTimeout(() => {
+                        if (newSocket && !newSocket.connected) {
+                            newSocket.connect();
+                        }
+                    }, 500);
+                }
             });
             
             newSocket.on('connect_error', (err) => {
@@ -35,7 +43,16 @@ export function useSocket() {
                 setIsConnected(false);
             });
 
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'visible' && newSocket && !newSocket.connected) {
+                    console.log('Tab became visible, reconnecting socket...');
+                    newSocket.connect();
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+
             setSocket(newSocket);
+            newSocket._handleVisibilityChange = handleVisibilityChange;
         }
 
         connect();
@@ -43,6 +60,9 @@ export function useSocket() {
         return () => {
             active = false;
             if (newSocket) {
+                if (newSocket._handleVisibilityChange) {
+                    document.removeEventListener('visibilitychange', newSocket._handleVisibilityChange);
+                }
                 newSocket.disconnect();
             }
         };

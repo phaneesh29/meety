@@ -53,7 +53,7 @@ export default function Layout() {
                     className="flex items-center gap-2 hover:bg-white/5 p-1 pl-3 rounded-full transition-colors border border-transparent hover:border-white/10 focus:outline-none"
                   >
                     <span className="text-sm font-medium text-gray-300 hidden sm:block">
-                      {user?.firstName || 'Account'}
+                      {user?.username || 'Account'}
                     </span>
                     <img
                       src={user?.imageUrl}
@@ -72,7 +72,7 @@ export default function Layout() {
                           className="w-12 h-12 rounded-full border border-white/10 shadow-inner"
                         />
                         <div className="flex flex-col truncate">
-                          <span className="text-sm font-semibold text-white truncate">{user?.fullName || user?.firstName || 'User'}</span>
+                          <span className="text-sm font-semibold text-white truncate">{user?.username || 'User'}</span>
                           <span className="text-xs text-gray-400 truncate">{user?.primaryEmailAddress?.emailAddress}</span>
                         </div>
                       </div>

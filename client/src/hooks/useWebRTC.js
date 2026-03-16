@@ -23,34 +23,36 @@ export function useWebRTC(socket, roomCode) {
     const [selectedAudioInputDevice, setSelectedAudioInputDevice] = useState('default');
     const [audioOutputDevices, setAudioOutputDevices] = useState([]);
     const [selectedAudioOutputDevice, setSelectedAudioOutputDevice] = useState('default');
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const [screenStream, setScreenStream] = useState(null);
 
     const initializeMedia = useCallback(async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
+            const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 1280, max: 1920 },
                     height: { ideal: 720, max: 1080 },
                     frameRate: { ideal: 24, max: 30 }
-                }, 
+                },
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true
-                } 
+                }
             });
-            
+
             const devices = await navigator.mediaDevices.enumerateDevices();
             const vDevices = devices.filter(device => device.kind === 'videoinput');
             const aInputDevices = devices.filter(device => device.kind === 'audioinput');
             const aOutputDevices = devices.filter(device => device.kind === 'audiooutput');
-            
+
             setVideoDevices(vDevices);
             setAudioInputDevices(aInputDevices);
             setAudioOutputDevices(aOutputDevices);
-            
+
             const currentVideoTrackId = stream.getVideoTracks()[0]?.getSettings().deviceId;
             setSelectedVideoDevice(currentVideoTrackId || vDevices[0]?.deviceId);
-            
+
             const currentAudioTrackId = stream.getAudioTracks()[0]?.getSettings().deviceId;
             setSelectedAudioInputDevice(currentAudioTrackId || 'default');
 
@@ -70,7 +72,7 @@ export function useWebRTC(socket, roomCode) {
                     width: { ideal: 1280, max: 1920 },
                     height: { ideal: 720, max: 1080 },
                     frameRate: { ideal: 24, max: 30 }
-                } : { 
+                } : {
                     deviceId: { exact: deviceId },
                     width: { ideal: 1280, max: 1920 },
                     height: { ideal: 720, max: 1080 },
@@ -97,14 +99,14 @@ export function useWebRTC(socket, roomCode) {
                         }
                     }
                 });
-                
+
                 oldVideoTrack.stop();
-                
+
                 const newStream = new MediaStream([
                     ...localStreamRef.current.getAudioTracks(),
                     newVideoTrack
                 ]);
-                
+
                 localStreamRef.current = newStream;
                 setLocalStream(newStream);
                 setSelectedVideoDevice(deviceId);
@@ -121,7 +123,7 @@ export function useWebRTC(socket, roomCode) {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true
-                } : { 
+                } : {
                     deviceId: { exact: deviceId },
                     echoCancellation: true,
                     noiseSuppression: true,
@@ -140,14 +142,14 @@ export function useWebRTC(socket, roomCode) {
                 Object.values(peersRef.current).forEach(peer => {
                     peer.replaceTrack(oldAudioTrack, newAudioTrack, localStreamRef.current);
                 });
-                
+
                 oldAudioTrack.stop();
-                
+
                 const newStream = new MediaStream([
                     ...localStreamRef.current.getVideoTracks(),
                     newAudioTrack
                 ]);
-                
+
                 localStreamRef.current = newStream;
                 setLocalStream(newStream);
                 setSelectedAudioInputDevice(deviceId);
@@ -160,6 +162,91 @@ export function useWebRTC(socket, roomCode) {
     const changeAudioOutput = useCallback((deviceId) => {
         setSelectedAudioOutputDevice(deviceId);
     }, []);
+
+    const stopScreenShare = useCallback(async (originalVideoDevice) => {
+        if (screenStream) {
+            screenStream.getTracks().forEach(track => track.stop());
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: originalVideoDevice ? { deviceId: { exact: originalVideoDevice } } : {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                }
+            });
+            const newVideoTrack = stream.getVideoTracks()[0];
+            const currentVideoTrack = localStreamRef.current?.getVideoTracks()[0];
+
+            if (currentVideoTrack && newVideoTrack) {
+                newVideoTrack.enabled = currentVideoTrack.enabled;
+                Object.values(peersRef.current).forEach(peer => {
+                    if (typeof peer.replaceTrack === 'function') {
+                        try { peer.replaceTrack(currentVideoTrack, newVideoTrack, localStreamRef.current); } catch (err) { }
+                    }
+                });
+                currentVideoTrack.stop();
+
+                const newLocalStream = new MediaStream([
+                    ...localStreamRef.current.getAudioTracks(),
+                    newVideoTrack
+                ]);
+                localStreamRef.current = newLocalStream;
+                setLocalStream(newLocalStream);
+            }
+        } catch (error) {
+            console.error('Error reverting to camera:', error);
+        }
+
+        setIsScreenSharing(false);
+        setScreenStream(null);
+        if (socket) {
+            socket.emit('screen-share-stop', roomCode);
+        }
+    }, [screenStream, socket, roomCode]);
+
+    const toggleScreenShare = useCallback(async () => {
+        if (!isScreenSharing) {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                const screenVideoTrack = stream.getVideoTracks()[0];
+                const oldVideoTrack = localStreamRef.current?.getVideoTracks()[0];
+
+                if (oldVideoTrack && screenVideoTrack) {
+                    Object.values(peersRef.current).forEach(peer => {
+                        if (typeof peer.replaceTrack === 'function') {
+                            try { peer.replaceTrack(oldVideoTrack, screenVideoTrack, localStreamRef.current); } catch (err) { }
+                        }
+                    });
+
+                    oldVideoTrack.stop();
+
+                    const newStream = new MediaStream([
+                        ...localStreamRef.current.getAudioTracks(),
+                        screenVideoTrack
+                    ]);
+
+                    localStreamRef.current = newStream;
+                    setLocalStream(newStream);
+                    setScreenStream(stream);
+                    setIsScreenSharing(true);
+
+                    if (socket) {
+                        socket.emit('screen-share-start', roomCode);
+                    }
+
+                    screenVideoTrack.onended = () => {
+                        stopScreenShare(selectedVideoDevice);
+                    };
+                }
+            } catch (err) {
+                console.error("Error sharing screen:", err);
+            }
+        } else {
+            await stopScreenShare(selectedVideoDevice);
+        }
+    }, [isScreenSharing, socket, roomCode, stopScreenShare, selectedVideoDevice]);
 
     const createPeer = useCallback((id, stream, isInitiator, displayName) => {
         const peer = new Peer({
@@ -183,6 +270,17 @@ export function useWebRTC(socket, roomCode) {
                 }
                 return [...prev, { id, displayName, stream: currentStream }];
             });
+        });
+
+        // Listen for track replacement events from remote peer
+        peer.on('track', (track, currentStream) => {
+            setStreams(prev => prev.map(s => {
+                if (s.id === id) {
+                    // Clone stream to trigger React re-render and reassign srcObject
+                    return { ...s, stream: new MediaStream(currentStream.getTracks()) };
+                }
+                return s;
+            }));
         });
 
         peersRef.current[id] = peer;
@@ -235,10 +333,10 @@ export function useWebRTC(socket, roomCode) {
         }
     }, [removePeer]);
 
-    return { 
-        localStream, streams, initializeMedia, cleanup, joinUsers, 
+    return {
+        localStream, streams, initializeMedia, cleanup, joinUsers,
         videoDevices, selectedVideoDevice, changeCamera,
-        audioInputDevices, selectedAudioInputDevice, changeAudioInput,
-        audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput
+        audioInputDevices, selectedAudioInputDevice, changeAudioInput, audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput,
+        isScreenSharing, toggleScreenShare
     };
 }

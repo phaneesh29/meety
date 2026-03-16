@@ -10,6 +10,8 @@ export function createSocketServer(httpServer) {
             origin: env.corsOrigin === "*" ? true : env.corsOrigin.split(",").map((o) => o.trim()),
             credentials: true,
         },
+        pingTimeout: 60000,
+        pingInterval: 25000,
     });
 
     io.use(authenticate);
