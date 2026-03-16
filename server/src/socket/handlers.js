@@ -132,15 +132,15 @@ export function registerHandlers(io, socket) {
     });
     
     socket.on("screen-share-start", (roomCode) => {
-        socket.to(roomCode).emit("screen-share-started", { id: socket.id });
+        io.to(roomCode).emit("screen-share-started", { id: socket.id });
     });
 
     socket.on("screen-share-stop", (roomCode) => {
-        socket.to(roomCode).emit("screen-share-stopped", { id: socket.id });
+        io.to(roomCode).emit("screen-share-stopped", { id: socket.id });
     });
 
     socket.on("video-toggle", (roomCode, isVideoMuted) => {
-        socket.to(roomCode).emit("user-video-toggled", { id: socket.id, isVideoMuted });
+        io.to(roomCode).emit("user-video-toggled", { id: socket.id, isVideoMuted });
     });
 
     socket.on("disconnecting", async () => {
