@@ -3,10 +3,10 @@ import { FileText } from 'lucide-react';
 
 export default function TermsOfService() {
   return (
-    <div className="min-h-screen bg-[#202124] text-gray-300 font-sans p-6 sm:p-12">
-      <div className="max-w-3xl mx-auto bg-[#27292d] p-8 sm:p-12 rounded-2xl border border-[#3c4043] shadow-xl">
+        <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-black via-zinc-950 to-black text-gray-300 p-6 sm:p-12">
+            <div className="max-w-3xl mx-auto bg-black/60 backdrop-blur-3xl p-8 sm:p-12 rounded-3xl border border-white/15 shadow-2xl">
         <div className="flex items-center gap-3 mb-8">
-            <FileText className="w-8 h-8 text-indigo-400" />
+            <FileText className="w-8 h-8 text-zinc-400" />
             <h1 className="text-3xl font-semibold text-white">Terms of Service</h1>
         </div>
         
@@ -61,8 +61,8 @@ export default function TermsOfService() {
             </section>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-[#3c4043]">
-            <Link to="/" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+        <div className="mt-12 pt-6 border-t border-white/10">
+            <Link to="/" className="text-zinc-400 hover:text-zinc-300 font-medium transition-colors">
                 &larr; Back to Dashboard
             </Link>
         </div>
@@ -70,3 +70,4 @@ export default function TermsOfService() {
     </div>
   );
 }
+

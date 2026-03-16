@@ -47,15 +47,15 @@ export default function AnalyticsModal({ roomCode, onClose }) {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="bg-[#27292d] text-white border border-[#3c4043] rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#3c4043]">
+            <div className="bg-black/70 text-white border border-white/15 rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] backdrop-blur-3xl">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
                     <div className="flex items-center gap-2 text-white">
-                        <BarChart2 className="w-5 h-5 text-indigo-400" />
+                        <BarChart2 className="w-5 h-5 text-zinc-400" />
                         <h2 className="text-xl font-semibold">Room Analytics</h2>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:bg-[#3c4043] hover:text-white rounded-full transition-colors"
+                        className="p-2 text-gray-400 hover:bg-white/10 hover:text-white rounded-full transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -71,7 +71,7 @@ export default function AnalyticsModal({ roomCode, onClose }) {
                             <div className="h-[300px] w-full mt-4">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#3c4043" />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#3f3f46" />
                                         <XAxis 
                                             dataKey="name" 
                                             axisLine={false} 
@@ -85,26 +85,26 @@ export default function AnalyticsModal({ roomCode, onClose }) {
                                             tick={{ fill: '#9ca3af', fontSize: 12 }} 
                                         />
                                         <Tooltip 
-                                            cursor={{ fill: '#3c4043' }}
-                                            contentStyle={{ backgroundColor: '#202124', borderRadius: '8px', border: '1px solid #3c4043', color: '#fff' }}
+                                            cursor={{ fill: '#3f3f46' }}
+                                            contentStyle={{ backgroundColor: '#09090b', borderRadius: '8px', border: '1px solid #3f3f46', color: '#fff' }}
                                         />
-                                        <Bar dataKey="minutes" fill="#818cf8" radius={[4, 4, 0, 0]} name="Minutes in call" />
+                                        <Bar dataKey="minutes" fill="#e5e7eb" radius={[4, 4, 0, 0]} name="Minutes in call" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
 
-                            <div className="overflow-hidden border border-[#3c4043] rounded-lg">
-                                <table className="min-w-full divide-y divide-[#3c4043]">
-                                    <thead className="bg-[#323639]">
+                            <div className="overflow-hidden border border-white/10 rounded-lg">
+                                <table className="min-w-full divide-y divide-white/10">
+                                    <thead className="bg-white/5">
                                         <tr>
                                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Participant</th>
                                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total Time</th>
                                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wider">Total Connections</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="bg-[#27292d] divide-y divide-[#3c4043]">
+                                    <tbody className="bg-black/40 divide-y divide-white/10">
                                         {data.map((row) => (
-                                            <tr key={row.name} className="hover:bg-[#323639]">
+                                            <tr key={row.name} className="hover:bg-white/5">
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">{row.name}</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">{row.minutes} min</td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-400">{row.sessions}</td>
@@ -120,3 +120,4 @@ export default function AnalyticsModal({ roomCode, onClose }) {
         </div>
     );
 }
+

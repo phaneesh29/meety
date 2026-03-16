@@ -11,14 +11,10 @@ export default function ProfilePage() {
         <UserProfile 
           routing="path" 
           path="/profile" 
-          appearance={{
-            elements: {
-              cardBox: "w-full max-w-none shadow-none",
-              rootBox: "w-full"
-            }
-          }}
         />
       </div>
     </div>
   )
 }
+
+

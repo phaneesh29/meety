@@ -41,7 +41,7 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOut
         <div className="relative bg-black/40 backdrop-blur-md rounded-2xl overflow-hidden flex items-center justify-center h-full w-full border border-white/10 shadow-2xl transition-all duration-300 hover:border-white/20 group">
             {!isLocal && <audio ref={audioRef} autoPlay playsInline muted={false} className="hidden" />}
             {isVideoOff && !isScreen ? (
-                <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-white/10 text-indigo-300 flex items-center justify-center font-bold text-3xl sm:text-5xl shadow-2xl backdrop-blur-xl">
+                <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-zinc-500/20 to-neutral-500/20 border border-white/10 text-zinc-300 flex items-center justify-center font-bold text-3xl sm:text-5xl shadow-2xl backdrop-blur-xl">
                     {displayName.charAt(0).toUpperCase()}
                 </div>
             ) : (
@@ -54,7 +54,7 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOut
                 />
             )}
             <div className={`absolute bottom-2 left-2 sm:bottom-4 sm:left-4 ${isVideoOff && !isScreen ? 'bg-black/40 text-gray-300' : 'bg-black/60 text-white'} backdrop-blur-md border border-white/10 px-2 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all group-hover:scale-105 flex items-center gap-1.5 sm:gap-2 max-w-[calc(100%-1rem)] sm:max-w-[calc(100%-2rem)] z-10`}>
-                {isScreen && <MonitorUp className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-400 shrink-0" />}
+                {isScreen && <MonitorUp className="w-3 h-3 sm:w-4 sm:h-4 text-zinc-400 shrink-0" />}
                 <span className="truncate">{displayName}</span>
                 {isLocal && <span className="shrink-0 text-white/70"> (You)</span>}
             </div>
@@ -328,7 +328,7 @@ export default function RoomPage() {
     if (error) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <h1 className="text-2xl font-semibold text-red-500">Error</h1>
+                <h1 className="text-2xl font-semibold text-gray-500">Error</h1>
                 <p className="text-sm">{error}</p>
                 <button
                     onClick={() => navigate('/dashboard')}
@@ -342,11 +342,11 @@ export default function RoomPage() {
 
     if (!joined) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-black text-white relative overflow-hidden">
-                <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+            <div className="flex items-center justify-center min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-black via-zinc-950 to-black text-white relative overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-zinc-500/10 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-neutral-500/10 rounded-full blur-3xl"></div>
                 <div className="flex flex-col items-center gap-6 z-10 glass-clerk p-12 rounded-3xl bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl">
-                    <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-indigo-500 border-t-transparent shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-zinc-500 border-t-transparent shadow-[0_0_15px_rgba(228,228,231,0.45)]"></div>
                     <p className="text-lg font-medium text-gray-300 tracking-wide">Joining secure room...</p>
                 </div>
             </div>
@@ -370,19 +370,19 @@ export default function RoomPage() {
     };
 
     return (
-        <div className="flex flex-col h-[100dvh] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#0f172a] to-black font-sans overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="flex flex-col h-[100dvh] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-black via-zinc-950 to-black font-sans overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-zinc-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-neutral-500/10 rounded-full blur-[120px] pointer-events-none"></div>
             
-            <div className="flex flex-1 overflow-hidden p-2 sm:p-4 gap-4 relative z-10">
+            <div className="flex flex-1 overflow-hidden p-1.5 sm:p-4 gap-2 sm:gap-4 relative z-10">
                 {/* Floating Top Info Overlay */}
-                <div className="absolute top-4 sm:top-6 left-4 sm:left-6 z-20 flex items-center gap-2 sm:gap-3 bg-slate-900/60 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-white/10 shadow-sm transition-all text-white">
+                <div className="absolute top-3 sm:top-6 left-2 right-2 sm:left-6 sm:right-auto z-20 flex items-center justify-between sm:justify-start gap-2 sm:gap-3 bg-black/60 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-white/10 shadow-sm transition-all text-white">
                     <button
                         onClick={() => navigate('/dashboard')}
                         className="text-xs sm:text-sm font-medium text-gray-300 hover:text-white transition-colors flex items-center gap-2"
                         title="Back to Dashboard"
                     >
-                        <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />
+                        <LayoutDashboard className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400" />
                         <span className="hidden sm:inline tracking-wide">Dashboard</span>
                     </button>
                     
@@ -396,18 +396,18 @@ export default function RoomPage() {
                             <img 
                                 src={user?.imageUrl} 
                                 alt="Profile" 
-                                className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-white/20 object-cover bg-indigo-500/20"
+                                className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border border-white/20 object-cover bg-zinc-500/20"
                             />
                             <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 text-gray-300 transition-transform duration-300 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
                         </button>
 
                         {isProfileDropdownOpen && (
-                            <div className="absolute left-0 mt-3 w-64 bg-slate-900/90 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="absolute right-0 sm:left-0 sm:right-auto mt-3 w-[min(16rem,calc(100vw-1rem))] bg-black/90 backdrop-blur-3xl border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                                 <div className="px-4 py-4 border-b border-white/10 mb-2 flex items-center gap-4">
                                     <img 
                                         src={user?.imageUrl} 
                                         alt="Profile" 
-                                        className="w-12 h-12 rounded-full border-2 border-indigo-500/50 shadow-lg"
+                                        className="w-12 h-12 rounded-full border-2 border-zinc-500/50 shadow-lg"
                                     />
                                     <div className="flex flex-col truncate">
                                         <span className="text-[15px] font-semibold text-white truncate">{user?.username || 'User'}</span>
@@ -419,7 +419,7 @@ export default function RoomPage() {
                                     onClick={() => navigate('/profile')}
                                     className="w-full text-left px-5 py-3 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-all flex items-center gap-3 font-medium"
                                 >
-                                    <User className="w-4 h-4 text-indigo-400" />
+                                    <User className="w-4 h-4 text-zinc-400" />
                                     Manage Profile
                                 </button>
                                 
@@ -429,7 +429,7 @@ export default function RoomPage() {
                                         logout();
                                     }}
                                     disabled={isLoggingOut}
-                                    className="w-full text-left px-5 py-3 text-sm text-red-400 hover:bg-white/10 hover:text-red-300 transition-all flex items-center gap-3 font-medium disabled:opacity-50"
+                                    className="w-full text-left px-5 py-3 text-sm text-gray-400 hover:bg-white/10 hover:text-gray-300 transition-all flex items-center gap-3 font-medium disabled:opacity-50"
                                 >
                                     <LogOut className="w-4 h-4" />
                                     {isLoggingOut ? 'Signing out...' : 'Sign out'}
@@ -492,17 +492,17 @@ export default function RoomPage() {
 
                 {/* Right Sidebar: Chat & People */}
                 {isSidebarOpen && (
-                    <div className="absolute inset-y-4 right-4 z-30 md:static w-80 md:w-80 flex flex-col bg-slate-900/80 backdrop-blur-3xl rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 border border-white/10">
+                    <div className="absolute inset-y-3 right-2 left-2 sm:inset-y-4 sm:right-4 sm:left-auto z-30 md:static w-auto sm:w-[min(20rem,calc(100vw-2rem))] md:w-80 flex flex-col bg-black/80 backdrop-blur-3xl rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 border border-white/10">
                         <div className="p-2 border-b border-white/10 flex gap-2">
                             <button 
                                 onClick={() => setSidebarTab('chat')}
-                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${sidebarTab === 'chat' ? 'bg-white/10 text-indigo-400 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${sidebarTab === 'chat' ? 'bg-white/10 text-zinc-400 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
                             >
                                 Chat
                             </button>
                             <button 
                                 onClick={() => setSidebarTab('people')}
-                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${sidebarTab === 'people' ? 'bg-white/10 text-indigo-400 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
+                                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${sidebarTab === 'people' ? 'bg-white/10 text-zinc-400 shadow-sm' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
                             >
                                 People
                             </button>
@@ -521,7 +521,7 @@ export default function RoomPage() {
                                     {messages.length === 0 ? (
                                         <div className="h-full flex items-center justify-center">
                                             <div className="text-center bg-white/5 p-6 rounded-2xl border border-white/10">
-                                                <MessageSquare className="w-8 h-8 text-indigo-400 mx-auto mb-3 opacity-50" />
+                                                <MessageSquare className="w-8 h-8 text-zinc-400 mx-auto mb-3 opacity-50" />
                                                 <p className="text-sm text-gray-400 font-medium">Messages are saved in the database.</p>
                                                 <p className="text-xs text-gray-500 mt-1">Start the conversation!</p>
                                             </div>
@@ -539,7 +539,7 @@ export default function RoomPage() {
                                                 </div>
                                                 <div className={`px-4 py-2.5 rounded-2xl max-w-[85%] text-[14px] leading-relaxed shadow-md backdrop-blur-md ${
                                                     msg.isSelf 
-                                                    ? 'bg-indigo-500/80 text-white rounded-tr-sm border border-indigo-400/50' 
+                                                    ? 'bg-zinc-500/80 text-white rounded-tr-sm border border-zinc-400/50' 
                                                     : 'bg-white/10 text-gray-100 rounded-tl-sm border border-white/10'}`}>
                                                     {msg.message}
                                                 </div>
@@ -551,13 +551,13 @@ export default function RoomPage() {
 
                                 <form onSubmit={handleSendMessage} className="p-3 bg-black/40 backdrop-blur-xl border-t border-white/10">
                                     {typingUsers.length > 0 && (
-                                        <div className="text-[11px] text-indigo-300 font-medium mb-2 px-2 animate-pulse">
+                                        <div className="text-[11px] text-zinc-300 font-medium mb-2 px-2 animate-pulse">
                                             {typingUsers.length === 1 
                                                 ? `${typingUsers[0]} is typing...` 
                                                 : `${typingUsers.join(', ')} are typing...`}
                                         </div>
                                     )}
-                                    <div className="flex gap-2 w-full bg-white/5 p-1.5 rounded-2xl border border-white/10 focus-within:border-indigo-500/50 focus-within:bg-white/10 transition-all shadow-inner">
+                                    <div className="flex gap-2 w-full bg-white/5 p-1.5 rounded-2xl border border-white/10 focus-within:border-zinc-500/50 focus-within:bg-white/10 transition-all shadow-inner">
                                         <input
                                             type="text"
                                             value={newMessage}
@@ -568,7 +568,7 @@ export default function RoomPage() {
                                         <button
                                             type="submit"
                                             disabled={!newMessage.trim()}
-                                            className="p-2.5 rounded-xl bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-40 disabled:hover:bg-indigo-500 transition-all"
+                                            className="p-2.5 rounded-xl bg-zinc-500 text-white hover:bg-zinc-600 disabled:opacity-40 disabled:hover:bg-zinc-500 transition-all"
                                         >
                                             <Send className="w-4 h-4" />
                                         </button>
@@ -578,11 +578,11 @@ export default function RoomPage() {
                         ) : (
                             <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-8 custom-scroll">
                                 <div>
-                                    <h4 className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest mb-4">In call ({participants.length})</h4>
+                                    <h4 className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-4">In call ({participants.length})</h4>
                                     <div className="space-y-4">
                                         {participants.map(p => (
                                             <div key={p.id} className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/5">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold shadow-lg">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-zinc-500 to-neutral-500 text-white flex items-center justify-center font-bold shadow-lg">
                                                     {p.displayName.charAt(0).toUpperCase()}
                                                 </div>
                                                 <span className="text-[15px] font-semibold text-gray-200">{p.displayName}</span>
@@ -599,7 +599,7 @@ export default function RoomPage() {
                                         ) : (
                                             notifications.map((note, i) => (
                                                 <div key={i} className="text-[13px] text-gray-400 flex items-center gap-3 bg-white/5 px-3 py-2 rounded-lg">
-                                                    <div className="w-2 h-2 rounded-full bg-indigo-500/50 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+                                                    <div className="w-2 h-2 rounded-full bg-zinc-500/50 shadow-[0_0_8px_rgba(228,228,231,0.45)]"></div>
                                                     <span className="font-medium">{note}</span>
                                                 </div>
                                             ))
@@ -613,7 +613,7 @@ export default function RoomPage() {
             </div>
 
             {/* Bottom Controls Bar */}
-            <div className="h-auto min-h-[80px] sm:min-h-[88px] w-full flex flex-wrap items-center justify-between px-2 sm:px-4 md:px-8 py-3 sm:py-0 z-20 gap-y-3 sm:gap-y-0 relative bg-slate-900 border-t border-white/5">
+            <div className="h-auto min-h-[80px] sm:min-h-[88px] w-full flex flex-wrap items-center justify-between px-2 sm:px-4 md:px-8 py-2.5 sm:py-0 pb-[max(env(safe-area-inset-bottom),0.5rem)] z-20 gap-y-2 sm:gap-y-0 relative bg-black border-t border-white/5">
                 <div className="hidden md:flex flex-1 text-white text-sm order-1">
                     <div className="flex items-center gap-4 px-2 py-1">
                         <span className="font-medium text-[15px] hidden xl:block tracking-wide text-gray-200">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -624,19 +624,19 @@ export default function RoomPage() {
                             className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-all shrink-0"
                             title="Copy meeting info"
                         >
-                            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                            {copied ? <Check className="w-4 h-4 text-zinc-400" /> : <Copy className="w-4 h-4" />}
                         </button>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-center gap-2 sm:gap-3 lg:gap-4 w-full md:w-auto flex-1 md:flex-none order-last md:order-2">
+                <div className="flex items-center justify-center gap-1.5 sm:gap-3 lg:gap-4 w-full md:w-auto flex-1 md:flex-none order-last md:order-2">
                     <div className="relative flex items-center">
-                        <div className="flex items-center bg-[#3c4043] rounded-full hover:bg-[#434649] transition-all overflow-hidden border border-transparent shadow-sm hover:shadow-md">
+                        <div className="flex items-center bg-zinc-700 rounded-full hover:bg-zinc-600 transition-all overflow-hidden border border-transparent shadow-sm hover:shadow-md">
                             <button
                                 onClick={toggleAudio}
-                                className={`p-3 sm:p-4 flex items-center justify-center transition-colors ${
+                                className={`p-2.5 sm:p-4 flex items-center justify-center transition-colors ${
                                     isAudioMuted 
-                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    ? 'bg-zinc-200 hover:bg-zinc-100 text-black' 
                                     : 'text-white'
                                 }`}
                                 title={isAudioMuted ? "Turn on microphone" : "Turn off microphone"}
@@ -646,9 +646,9 @@ export default function RoomPage() {
                             <div className={`w-[1px] h-6 ${isAudioMuted ? 'bg-white/30' : 'bg-white/20'} mx-0.5`}></div>
                             <button
                                 onClick={() => setShowSettings(true)}
-                                className={`p-3 sm:p-4 pr-3 sm:pr-4 pl-2 sm:pl-2 flex items-center justify-center transition-colors ${
+                                className={`p-2.5 sm:p-4 pr-2.5 sm:pr-4 pl-1.5 sm:pl-2 flex items-center justify-center transition-colors ${
                                     isAudioMuted 
-                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    ? 'bg-zinc-200 hover:bg-zinc-100 text-black' 
                                     : 'text-gray-300 hover:text-white'
                                 }`}
                                 title="Audio options"
@@ -659,12 +659,12 @@ export default function RoomPage() {
                     </div>
                     
                     <div className="relative flex items-center">
-                        <div className="flex items-center bg-[#3c4043] rounded-full hover:bg-[#434649] transition-all overflow-hidden border border-transparent shadow-sm hover:shadow-md">
+                        <div className="flex items-center bg-zinc-700 rounded-full hover:bg-zinc-600 transition-all overflow-hidden border border-transparent shadow-sm hover:shadow-md">
                             <button
                                 onClick={toggleVideo}
-                                className={`p-3 sm:p-4 flex items-center justify-center transition-colors ${
+                                className={`p-2.5 sm:p-4 flex items-center justify-center transition-colors ${
                                     isVideoMuted 
-                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    ? 'bg-zinc-200 hover:bg-zinc-100 text-black' 
                                     : 'text-white'
                                 }`}
                                 title={isVideoMuted ? "Turn on camera" : "Turn off camera"}
@@ -674,9 +674,9 @@ export default function RoomPage() {
                             <div className={`w-[1px] h-6 ${isVideoMuted ? 'bg-white/30' : 'bg-white/20'} mx-0.5`}></div>
                             <button
                                 onClick={() => setShowSettings(true)}
-                                className={`p-3 sm:p-4 pr-3 sm:pr-4 pl-2 sm:pl-2 flex items-center justify-center transition-colors ${
+                                className={`p-2.5 sm:p-4 pr-2.5 sm:pr-4 pl-1.5 sm:pl-2 flex items-center justify-center transition-colors ${
                                     isVideoMuted 
-                                    ? 'bg-[#ea4335] hover:bg-[#d93025] text-white' 
+                                    ? 'bg-zinc-200 hover:bg-zinc-100 text-black' 
                                     : 'text-gray-300 hover:text-white'
                                 }`}
                                 title="Camera options"
@@ -698,12 +698,12 @@ export default function RoomPage() {
                             }
                         }}
                         disabled={!checkScreenShareSupport().supported}
-                        className={`p-3 sm:p-4 rounded-full flex items-center justify-center transition-all shadow-sm hover:shadow-md ${
+                        className={`p-2.5 sm:p-4 rounded-full flex items-center justify-center transition-all shadow-sm hover:shadow-md ${
                             !checkScreenShareSupport().supported 
                             ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
                             : isScreenSharing 
-                            ? 'bg-indigo-500 hover:bg-indigo-600 text-white' 
-                            : 'bg-[#3c4043] hover:bg-[#434649] text-white'
+                            ? 'bg-zinc-500 hover:bg-zinc-600 text-white' 
+                            : 'bg-zinc-700 hover:bg-zinc-600 text-white'
                         }`}
                         title={!checkScreenShareSupport().supported ? 'Screen sharing not supported on your browser' : isScreenSharing ? "Stop sharing screen" : "Share screen"}
                     >
@@ -712,7 +712,7 @@ export default function RoomPage() {
 
                     <button
                         onClick={() => navigate('/dashboard')}
-                        className="px-6 sm:px-8 py-3 sm:py-4 bg-[#ea4335] hover:bg-[#d93025] text-white rounded-full transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md ml-2"
+                        className="px-4 sm:px-8 py-2.5 sm:py-4 bg-zinc-200 hover:bg-zinc-100 text-black rounded-full transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md ml-1.5 sm:ml-2"
                         title="Leave call"
                     >
                         <PhoneOff className="w-5 h-5" />
@@ -720,10 +720,10 @@ export default function RoomPage() {
                 </div>
 
                 <div className="flex flex-1 justify-between md:justify-end items-center gap-2 sm:gap-3 text-white w-full md:w-auto order-1 md:order-3">
-                    <div className="md:hidden flex items-center gap-2 px-2">
+                    <div className="md:hidden flex items-center gap-1.5 px-1">
                         <span className="font-mono font-medium text-[12px] sm:text-sm text-gray-300 truncate max-w-[90px] sm:max-w-[120px]">{roomCode}</span>
-                        <button onClick={handleCopyUrl} className="p-1.5 text-gray-400 hover:text-white" title="Copy room code">
-                            {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <button onClick={handleCopyUrl} className="p-1 text-gray-400 hover:text-white" title="Copy room code">
+                            {copied ? <Check className="w-3.5 h-3.5 text-zinc-400" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                     </div>
 
@@ -742,7 +742,7 @@ export default function RoomPage() {
                                 if (sidebarTab !== 'people') setSidebarTab('people');
                                 setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'people');
                             }}
-                            className={`p-3 rounded-full transition-all ${isSidebarOpen && sidebarTab === 'people' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
+                            className={`p-3 rounded-full transition-all ${isSidebarOpen && sidebarTab === 'people' ? 'bg-zinc-500/20 text-zinc-400' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
                             title="Show everyone"
                         >
                             <Users className="w-5 h-5" />
@@ -752,12 +752,12 @@ export default function RoomPage() {
                                 if (sidebarTab !== 'chat') setSidebarTab('chat');
                                 setIsSidebarOpen(!isSidebarOpen || sidebarTab !== 'chat');
                             }}
-                            className={`relative p-3 rounded-full transition-all ${isSidebarOpen && sidebarTab === 'chat' ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
+                            className={`relative p-3 rounded-full transition-all ${isSidebarOpen && sidebarTab === 'chat' ? 'bg-zinc-500/20 text-zinc-400' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
                             title="Chat with everyone"
                         >
                             <MessageSquare className="w-5 h-5" />
                             {hasUnreadMessages && (
-                                <span className="absolute top-[8px] right-[8px] w-2.5 h-2.5 bg-[#ea4335] border-2 border-slate-900 rounded-full"></span>
+                                <span className="absolute top-[8px] right-[8px] w-2.5 h-2.5 bg-zinc-200 border-2 border-black rounded-full"></span>
                             )}
                         </button>
                     </div>
@@ -768,7 +768,7 @@ export default function RoomPage() {
             
             {showSettings && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-50 flex items-center justify-center p-4 transition-all">
-                    <div className="bg-slate-900/80 backdrop-blur-3xl rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="bg-black/80 backdrop-blur-3xl rounded-3xl w-full max-w-lg border border-white/10 shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                         <div className="flex items-center justify-between p-6 border-b border-white/10">
                             <h2 className="text-xl font-bold text-white tracking-wide">Device Settings</h2>
                             <button
@@ -778,26 +778,26 @@ export default function RoomPage() {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <div className="p-8 space-y-8">
+                        <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
                             <div>
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Microphone (Input)</h3>
                                     <button 
                                         onClick={() => changeAudioInput('default')}
-                                        className="text-xs font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 px-3 py-1.5 rounded-lg transition-all border border-indigo-500/30"
+                                        className="text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-500/20 hover:bg-zinc-500/40 px-3 py-1.5 rounded-lg transition-all border border-zinc-500/30"
                                     >
                                         System Default
                                     </button>
                                 </div>
                                 {audioInputDevices.length > 0 ? (
                                     <select
-                                        className="w-full bg-white/5 border border-white/10 text-white text-sm font-medium rounded-xl p-4 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all cursor-pointer appearance-none shadow-inner"
+                                        className="w-full bg-white/5 border border-white/10 text-white text-sm font-medium rounded-xl p-4 outline-none focus:border-zinc-500 focus:bg-white/10 transition-all cursor-pointer appearance-none shadow-inner"
                                         value={selectedAudioInputDevice || 'default'}
                                         onChange={(e) => changeAudioInput(e.target.value)}
                                     >
-                                        <option value="default" className="bg-slate-900">Default</option>
+                                        <option value="default" className="bg-black">Default</option>
                                         {audioInputDevices.map((device, index) => (
-                                            <option key={device.deviceId} value={device.deviceId} className="bg-slate-900">
+                                            <option key={device.deviceId} value={device.deviceId} className="bg-black">
                                                 {device.label || `Microphone ${index + 1}`}
                                             </option>
                                         ))}
@@ -812,20 +812,20 @@ export default function RoomPage() {
                                     <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Speaker (Output)</h3>
                                     <button 
                                         onClick={() => changeAudioOutput('default')}
-                                        className="text-xs font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 px-3 py-1.5 rounded-lg transition-all border border-indigo-500/30"
+                                        className="text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-500/20 hover:bg-zinc-500/40 px-3 py-1.5 rounded-lg transition-all border border-zinc-500/30"
                                     >
                                         System Default
                                     </button>
                                 </div>
                                 {audioOutputDevices.length > 0 ? (
                                     <select
-                                        className="w-full bg-white/5 border border-white/10 text-white text-sm font-medium rounded-xl p-4 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all cursor-pointer appearance-none shadow-inner"
+                                        className="w-full bg-white/5 border border-white/10 text-white text-sm font-medium rounded-xl p-4 outline-none focus:border-zinc-500 focus:bg-white/10 transition-all cursor-pointer appearance-none shadow-inner"
                                         value={selectedAudioOutputDevice || 'default'}
                                         onChange={(e) => changeAudioOutput(e.target.value)}
                                     >
-                                        <option value="default" className="bg-slate-900">Default</option>
+                                        <option value="default" className="bg-black">Default</option>
                                         {audioOutputDevices.map((device, index) => (
-                                            <option key={device.deviceId} value={device.deviceId} className="bg-slate-900">
+                                            <option key={device.deviceId} value={device.deviceId} className="bg-black">
                                                 {device.label || `Speaker ${index + 1}`}
                                             </option>
                                         ))}
@@ -840,20 +840,20 @@ export default function RoomPage() {
                                     <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Camera (Input)</h3>
                                     <button 
                                         onClick={() => changeCamera('')}
-                                        className="text-xs font-semibold text-indigo-300 hover:text-white bg-indigo-500/20 hover:bg-indigo-500/40 px-3 py-1.5 rounded-lg transition-all border border-indigo-500/30"
+                                        className="text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-500/20 hover:bg-zinc-500/40 px-3 py-1.5 rounded-lg transition-all border border-zinc-500/30"
                                     >
                                         System Default
                                     </button>
                                 </div>
                                 {videoDevices.length > 0 ? (
                                     <select
-                                        className="w-full bg-white/5 border border-white/10 text-white text-sm font-medium rounded-xl p-4 outline-none focus:border-indigo-500 focus:bg-white/10 transition-all cursor-pointer appearance-none shadow-inner"
+                                        className="w-full bg-white/5 border border-white/10 text-white text-sm font-medium rounded-xl p-4 outline-none focus:border-zinc-500 focus:bg-white/10 transition-all cursor-pointer appearance-none shadow-inner"
                                         value={selectedVideoDevice || ''}
                                         onChange={(e) => changeCamera(e.target.value)}
                                     >
-                                        <option value="" className="bg-slate-900">Default</option>
+                                        <option value="" className="bg-black">Default</option>
                                         {videoDevices.map((device, index) => (
-                                            <option key={device.deviceId} value={device.deviceId} className="bg-slate-900">
+                                            <option key={device.deviceId} value={device.deviceId} className="bg-black">
                                                 {device.label || `Camera ${index + 1}`}
                                             </option>
                                         ))}
@@ -869,3 +869,5 @@ export default function RoomPage() {
         </div>
     );
 }
+
+
