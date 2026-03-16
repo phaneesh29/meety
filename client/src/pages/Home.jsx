@@ -1,8 +1,9 @@
-﻿import { useState } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/react'
 import { useRooms } from '../hooks/useRooms'
 import { useSocket } from '../hooks/useSocket'
+import { apiRequest } from '../lib/api'
 import { Video, Keyboard, Copy, Trash2, LogIn, ChevronRight, Users } from 'lucide-react'
 
 export default function Home() {
@@ -11,7 +12,14 @@ export default function Home() {
   const { rooms, loading, createRoom, deleteRoom } = useRooms()
   const [creating, setCreating] = useState(false)
   const [joinCode, setJoinCode] = useState("")
+  const [isBackendHealthy, setIsBackendHealthy] = useState(true)
   useSocket()
+
+  useEffect(() => {
+    apiRequest('GET', '/api/health')
+      .then(() => setIsBackendHealthy(true))
+      .catch(() => setIsBackendHealthy(false))
+  }, [])
 
   async function handleCreateRoom() {
     setCreating(true)
@@ -39,11 +47,19 @@ export default function Home() {
       <header className="flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-20">
         <div className="w-full lg:w-1/2 space-y-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-indigo-300 text-sm font-medium">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-            </span>
-            Meety 2.0 is live
+            <div className="relative group flex items-center justify-center">
+              <span className="relative flex h-2 w-2">
+                {isBackendHealthy ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                )}
+              </span>
+            </div>
+            {isBackendHealthy ? "Meety 2.0 is live" : "Meety 2.0 is offline"}
           </div>
           
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.1]">
@@ -122,8 +138,12 @@ export default function Home() {
                   <h4 className="text-white font-semibold mb-1">Lightning Fast</h4>
                   <p className="text-sm text-gray-300">No downloads required. Just share the link.</p>
                 </div>
-                <div className="relative z-10 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-                  <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_15px_#4ade80]"></div>
+                <div className="relative z-10 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20 group">
+                  {isBackendHealthy ? (
+                    <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse shadow-[0_0_15px_#4ade80]"></div>
+                  ) : (
+                    <div className="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_15px_#ef4444]"></div>
+                  )}
                 </div>
                 {/* Decorative background element */}
                 <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl -mr-10 -mt-10"></div>
