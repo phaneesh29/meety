@@ -32,9 +32,11 @@ export default function Layout() {
           <div className="px-3 sm:px-6">
             <div className="flex justify-between items-center h-16">
               <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-                <div className="bg-gradient-to-br from-zinc-500 to-neutral-600 text-white p-2 rounded-xl shadow-lg border border-white/10 font-bold text-xl leading-none">
-                  M
-                </div>
+                <img
+                  src="/logo.png"
+                  alt="Meety logo"
+                  className="w-10 h-10 rounded-xl border border-white/10 shadow-lg object-cover"
+                />
                 <span className="font-bold text-lg sm:text-xl tracking-wide bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Meety</span>
               </Link>
 
@@ -118,7 +120,11 @@ export default function Layout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="bg-zinc-500 text-white p-1.5 rounded-lg font-bold text-sm leading-none opacity-50">M</div>
+              <img
+                src="/logo.png"
+                alt="Meety logo"
+                className="w-6 h-6 rounded-md opacity-60 object-cover"
+              />
               <p className="text-gray-500 text-sm font-medium">
                 © {new Date().getFullYear()} Meety. All rights reserved.
               </p>
