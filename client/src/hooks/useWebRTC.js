@@ -27,6 +27,44 @@ export function useWebRTC(socket, roomCode) {
     const [screenStream, setScreenStream] = useState(null);
     const [screenShareError, setScreenShareError] = useState(null);
 
+    const replaceTrackOnPeer = useCallback((peer, oldTrack, newTrack, stream, context) => {
+        if (!peer || !newTrack || !stream) return;
+
+        let replacedWithSimplePeer = false;
+
+        if (oldTrack && typeof peer.replaceTrack === 'function') {
+            try {
+                peer.replaceTrack(oldTrack, newTrack, stream);
+                replacedWithSimplePeer = true;
+            } catch (err) {
+                console.error(`Error replacing ${newTrack.kind} track on peer (${context})`, err);
+            }
+        }
+
+        if (replacedWithSimplePeer) {
+            return;
+        }
+
+        const pc = peer._pc;
+        const senders = pc && typeof pc.getSenders === 'function' ? pc.getSenders() : [];
+        const matchingSender = senders.find(sender => sender.track && sender.track.kind === newTrack.kind);
+
+        if (matchingSender && typeof matchingSender.replaceTrack === 'function') {
+            matchingSender.replaceTrack(newTrack).catch(err => {
+                console.error(`Error fallback-replacing ${newTrack.kind} sender (${context})`, err);
+            });
+            return;
+        }
+
+        if (typeof peer.addTrack === 'function') {
+            try {
+                peer.addTrack(newTrack, stream);
+            } catch (err) {
+                console.error(`Error fallback-adding ${newTrack.kind} track (${context})`, err);
+            }
+        }
+    }, []);
+
     const initializeMedia = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -106,13 +144,7 @@ export function useWebRTC(socket, roomCode) {
 
             // Now replace tracks on all peers with updated stream
             Object.values(peersRef.current).forEach(peer => {
-                if (peer && typeof peer.replaceTrack === 'function') {
-                    try {
-                        peer.replaceTrack(oldVideoTrack, newVideoTrack, newStream);
-                    } catch (err) {
-                        console.error('Error replacing video track on peer:', err);
-                    }
-                }
+                replaceTrackOnPeer(peer, oldVideoTrack, newVideoTrack, newStream, 'changeCamera');
             });
 
             // Stop old track after successful replacement
@@ -162,13 +194,7 @@ export function useWebRTC(socket, roomCode) {
 
             // Now replace tracks on all peers with updated stream
             Object.values(peersRef.current).forEach(peer => {
-                if (peer && typeof peer.replaceTrack === 'function') {
-                    try {
-                        peer.replaceTrack(oldAudioTrack, newAudioTrack, newStream);
-                    } catch (err) {
-                        console.error('Error replacing audio track on peer:', err);
-                    }
-                }
+                replaceTrackOnPeer(peer, oldAudioTrack, newAudioTrack, newStream, 'changeAudioInput');
             });
 
             // Stop old track after successful replacement
@@ -217,10 +243,60 @@ export function useWebRTC(socket, roomCode) {
         return check.supported;
     }, [checkScreenShareSupport, setScreenShareErrorMessage]);
 
-    const stopScreenShare = useCallback(async (originalVideoDevice) => {
-        if (screenStream) {
-            screenStream.getTracks().forEach(track => track.stop());
+    const recoverAudioTrackIfNeeded = useCallback(async () => {
+        const currentAudioTrack = localStreamRef.current?.getAudioTracks()[0];
+        if (currentAudioTrack && currentAudioTrack.readyState === 'live') {
+            Object.values(peersRef.current).forEach(peer => {
+                replaceTrackOnPeer(peer, null, currentAudioTrack, localStreamRef.current, 'recoverAudioTrack-live-sync');
+            });
+            return;
         }
+
+        try {
+            const audioConstraints = selectedAudioInputDevice && selectedAudioInputDevice !== 'default'
+                ? {
+                    deviceId: { exact: selectedAudioInputDevice },
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+                : {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                };
+
+            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+            const newAudioTrack = audioStream.getAudioTracks()[0];
+            if (!newAudioTrack) {
+                audioStream.getTracks().forEach(track => track.stop());
+                return;
+            }
+
+            const currentVideoTrack = localStreamRef.current?.getVideoTracks()[0];
+            const newLocalStream = new MediaStream([
+                ...(currentVideoTrack ? [currentVideoTrack] : []),
+                newAudioTrack
+            ]);
+
+            localStreamRef.current = newLocalStream;
+            setLocalStream(newLocalStream);
+
+            Object.values(peersRef.current).forEach(peer => {
+                if (!peer) return;
+                replaceTrackOnPeer(peer, currentAudioTrack || null, newAudioTrack, newLocalStream, 'recoverAudioTrack-reacquire');
+            });
+
+            if (currentAudioTrack && currentAudioTrack.readyState !== 'ended') {
+                currentAudioTrack.stop();
+            }
+        } catch (error) {
+            console.error('Error recovering audio track:', error);
+        }
+    }, [selectedAudioInputDevice, replaceTrackOnPeer]);
+
+    const stopScreenShare = useCallback(async (originalVideoDevice) => {
+        const displayTracksToStop = screenStream ? screenStream.getTracks() : [];
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -251,13 +327,7 @@ export function useWebRTC(socket, roomCode) {
 
             // Now replace tracks on all peers with updated stream
             Object.values(peersRef.current).forEach(peer => {
-                if (peer && typeof peer.replaceTrack === 'function') {
-                    try {
-                        peer.replaceTrack(currentVideoTrack, newVideoTrack, newLocalStream);
-                    } catch (err) {
-                        console.error('Error replacing video track on peer:', err);
-                    }
-                }
+                replaceTrackOnPeer(peer, currentVideoTrack, newVideoTrack, newLocalStream, 'stopScreenShare');
             });
 
             // Stop old track after replacement
@@ -266,12 +336,16 @@ export function useWebRTC(socket, roomCode) {
             console.error('Error reverting to camera:', error);
         }
 
+        await recoverAudioTrackIfNeeded();
+
+        displayTracksToStop.forEach(track => track.stop());
+
         setIsScreenSharing(false);
         setScreenStream(null);
         if (socket) {
             socket.emit('screen-share-stop', roomCode);
         }
-    }, [screenStream, socket, roomCode]);
+    }, [screenStream, socket, roomCode, recoverAudioTrackIfNeeded]);
 
     const toggleScreenShare = useCallback(async () => {
         if (!isScreenSharing) {
@@ -281,7 +355,7 @@ export function useWebRTC(socket, roomCode) {
             }
 
             try {
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
                 const screenVideoTrack = stream.getVideoTracks()[0];
                 const oldVideoTrack = localStreamRef.current?.getVideoTracks()[0];
 
@@ -306,13 +380,7 @@ export function useWebRTC(socket, roomCode) {
 
                 // Now replace tracks on all peers with updated stream
                 Object.values(peersRef.current).forEach(peer => {
-                    if (peer && typeof peer.replaceTrack === 'function') {
-                        try {
-                            peer.replaceTrack(oldVideoTrack, screenVideoTrack, newStream);
-                        } catch (err) {
-                            console.error('Error replacing video track on peer during screen share:', err);
-                        }
-                    }
+                    replaceTrackOnPeer(peer, oldVideoTrack, screenVideoTrack, newStream, 'startScreenShare');
                 });
 
                 // Stop old track after replacement
@@ -355,30 +423,75 @@ export function useWebRTC(socket, roomCode) {
             }
         });
 
+        peer.on('connect', () => {
+            const currentStream = localStreamRef.current;
+            if (!currentStream) return;
+
+            const currentAudioTrack = currentStream.getAudioTracks()[0];
+            const currentVideoTrack = currentStream.getVideoTracks()[0];
+
+            if (currentAudioTrack) {
+                replaceTrackOnPeer(peer, null, currentAudioTrack, currentStream, 'peer-connect-audio-sync');
+            }
+            if (currentVideoTrack) {
+                replaceTrackOnPeer(peer, null, currentVideoTrack, currentStream, 'peer-connect-video-sync');
+            }
+        });
+
         peer.on('stream', currentStream => {
             setStreams(prev => {
                 const existing = prev.find(s => s.id === id);
                 if (existing) {
-                    return prev;
+                    return prev.map(s => s.id === id
+                        ? { ...s, displayName: s.displayName || displayName, stream: currentStream }
+                        : s
+                    );
                 }
                 return [...prev, { id, displayName, stream: currentStream }];
             });
         });
 
-        // Listen for track replacement events from remote peer
+        // Merge incoming track by kind to avoid dropping audio on renegotiation/reload.
         peer.on('track', (track, currentStream) => {
-            setStreams(prev => prev.map(s => {
-                if (s.id === id) {
-                    // Clone stream to trigger React re-render and reassign srcObject
-                    return { ...s, stream: new MediaStream(currentStream.getTracks()) };
+            setStreams(prev => {
+                const existing = prev.find(s => s.id === id);
+
+                if (!existing) {
+                    const baseStream = currentStream
+                        ? new MediaStream(currentStream.getTracks())
+                        : new MediaStream([track]);
+                    return [...prev, { id, displayName, stream: baseStream }];
                 }
-                return s;
-            }));
+
+                const nextStream = new MediaStream();
+
+                // Keep all non-ended tracks except same-kind track we are replacing.
+                existing.stream.getTracks().forEach(existingTrack => {
+                    if (existingTrack.readyState === 'ended') return;
+                    if (existingTrack.kind === track.kind) return;
+                    nextStream.addTrack(existingTrack);
+                });
+
+                nextStream.addTrack(track);
+
+                // Add any missing live tracks from the current stream (e.g. audio track).
+                if (currentStream) {
+                    currentStream.getTracks().forEach(incomingTrack => {
+                        if (incomingTrack.readyState === 'ended') return;
+                        const hasKind = nextStream.getTracks().some(t => t.kind === incomingTrack.kind);
+                        if (!hasKind) {
+                            nextStream.addTrack(incomingTrack);
+                        }
+                    });
+                }
+
+                return prev.map(s => s.id === id ? { ...s, stream: nextStream } : s);
+            });
         });
 
         peersRef.current[id] = peer;
         return peer;
-    }, [socket]);
+    }, [socket, replaceTrackOnPeer]);
 
     const removePeer = useCallback((id) => {
         if (peersRef.current[id]) {

@@ -67,6 +67,7 @@ export function registerHandlers(io, socket) {
         }
 
         socket.leave(roomCode);
+        socket.to(roomCode).emit("screen-share-stopped", { id: socket.id });
         socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
         console.log(`User ${displayName} left room: ${roomCode}`);
     });
@@ -151,6 +152,7 @@ export function registerHandlers(io, socket) {
                     .where(eq(roomSessions.id, sessionId));
 
                 if (roomCode !== socket.id) {
+                    socket.to(roomCode).emit("screen-share-stopped", { id: socket.id });
                     socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
                 }
             }
@@ -158,6 +160,7 @@ export function registerHandlers(io, socket) {
             // fallback if no session tracking
             for (const roomCode of socket.rooms) {
                 if (roomCode !== socket.id) {
+                    socket.to(roomCode).emit("screen-share-stopped", { id: socket.id });
                     socket.to(roomCode).emit("user-left", { id: socket.id, displayName });
                 }
             }
