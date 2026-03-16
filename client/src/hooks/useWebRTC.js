@@ -12,6 +12,40 @@ const ICE_SERVERS = {
     ]
 };
 
+function preferOpusCodec(sdp) {
+    if (!sdp || typeof sdp !== 'string') return sdp;
+
+    const lines = sdp.split('\r\n');
+    const opusPayloadTypes = [];
+
+    for (const line of lines) {
+        const match = line.match(/^a=rtpmap:(\d+) opus\//i);
+        if (match) {
+            opusPayloadTypes.push(match[1]);
+        }
+    }
+
+    if (opusPayloadTypes.length === 0) return sdp;
+
+    const updatedLines = lines.map(line => {
+        if (!line.startsWith('m=audio ')) return line;
+
+        const parts = line.split(' ');
+        if (parts.length < 4) return line;
+
+        const header = parts.slice(0, 3);
+        const payloads = parts.slice(3);
+        const opusSet = new Set(opusPayloadTypes);
+
+        const preferred = payloads.filter(pt => opusSet.has(pt));
+        const others = payloads.filter(pt => !opusSet.has(pt));
+
+        return [...header, ...preferred, ...others].join(' ');
+    });
+
+    return updatedLines.join('\r\n');
+}
+
 export function useWebRTC(socket, roomCode) {
     const peersRef = useRef({}); // { [socketId]: Peer }
     const localStreamRef = useRef(null);
@@ -414,7 +448,8 @@ export function useWebRTC(socket, roomCode) {
             initiator: isInitiator,
             trickle: true,
             stream: stream,
-            config: ICE_SERVERS
+            config: ICE_SERVERS,
+            sdpTransform: preferOpusCodec
         });
 
         peer.on('signal', signal => {

@@ -10,6 +10,7 @@ import { apiRequest } from '../lib/api';
 
 const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOutputDevice, isScreen }) => {
     const videoRef = useRef(null);
+    const audioRef = useRef(null);
 
     useEffect(() => {
         if (videoRef.current && stream && !isVideoOff) {
@@ -21,6 +22,15 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOut
     }, [stream, isVideoOff, isScreen]);
 
     useEffect(() => {
+        // Keep remote audio attached even when video is hidden.
+        if (!audioRef.current || !stream || isLocal) return;
+
+        audioRef.current.srcObject = null;
+        audioRef.current.srcObject = stream;
+        audioRef.current.play().catch(err => console.error("Error playing remote audio:", err));
+    }, [stream, isLocal]);
+
+    useEffect(() => {
         if (videoRef.current && typeof videoRef.current.setSinkId === 'function' && audioOutputDevice) {
             videoRef.current.setSinkId(audioOutputDevice === 'default' ? '' : audioOutputDevice)
                 .catch(err => console.error("Error setting audio output device:", err));
@@ -29,6 +39,7 @@ const VideoPlayer = ({ stream, isLocal, displayName, muted, isVideoOff, audioOut
 
     return (
         <div className="relative bg-black/40 backdrop-blur-md rounded-2xl overflow-hidden flex items-center justify-center h-full w-full border border-white/10 shadow-2xl transition-all duration-300 hover:border-white/20 group">
+            {!isLocal && <audio ref={audioRef} autoPlay playsInline muted={false} className="hidden" />}
             {isVideoOff && !isScreen ? (
                 <div className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 border border-white/10 text-indigo-300 flex items-center justify-center font-bold text-3xl sm:text-5xl shadow-2xl backdrop-blur-xl">
                     {displayName.charAt(0).toUpperCase()}
