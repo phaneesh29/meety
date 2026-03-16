@@ -25,6 +25,7 @@ export function useWebRTC(socket, roomCode) {
     const [selectedAudioOutputDevice, setSelectedAudioOutputDevice] = useState('default');
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [screenStream, setScreenStream] = useState(null);
+    const [screenShareError, setScreenShareError] = useState(null);
 
     const initializeMedia = useCallback(async () => {
         try {
@@ -84,33 +85,38 @@ export function useWebRTC(socket, roomCode) {
             const newVideoTrack = stream.getVideoTracks()[0];
             const oldVideoTrack = localStreamRef.current?.getVideoTracks()[0];
 
-            if (oldVideoTrack && newVideoTrack) {
-                // Preserve the disabled state
-                newVideoTrack.enabled = oldVideoTrack.enabled;
-
-                // Loop through all peers and use simple-peer's replaceTrack mechanism
-                Object.keys(peersRef.current).forEach(peerId => {
-                    const peer = peersRef.current[peerId];
-                    if (peer && typeof peer.replaceTrack === 'function') {
-                        try {
-                            peer.replaceTrack(oldVideoTrack, newVideoTrack, localStreamRef.current);
-                        } catch (err) {
-                            console.error('Error replacing track for peer', peerId, err);
-                        }
-                    }
-                });
-
-                oldVideoTrack.stop();
-
-                const newStream = new MediaStream([
-                    ...localStreamRef.current.getAudioTracks(),
-                    newVideoTrack
-                ]);
-
-                localStreamRef.current = newStream;
-                setLocalStream(newStream);
-                setSelectedVideoDevice(deviceId);
+            if (!oldVideoTrack || !newVideoTrack) {
+                stream.getTracks().forEach(track => track.stop());
+                console.error('Error changing camera: missing video tracks');
+                return;
             }
+
+            // Preserve the disabled state
+            newVideoTrack.enabled = oldVideoTrack.enabled;
+
+            // Create and update local stream BEFORE replaceTrack
+            const newStream = new MediaStream([
+                ...localStreamRef.current.getAudioTracks(),
+                newVideoTrack
+            ]);
+
+            localStreamRef.current = newStream;
+            setLocalStream(newStream);
+            setSelectedVideoDevice(deviceId);
+
+            // Now replace tracks on all peers with updated stream
+            Object.values(peersRef.current).forEach(peer => {
+                if (peer && typeof peer.replaceTrack === 'function') {
+                    try {
+                        peer.replaceTrack(oldVideoTrack, newVideoTrack, newStream);
+                    } catch (err) {
+                        console.error('Error replacing video track on peer:', err);
+                    }
+                }
+            });
+
+            // Stop old track after successful replacement
+            oldVideoTrack.stop();
         } catch (error) {
             console.error('Error changing camera:', error);
         }
@@ -135,25 +141,38 @@ export function useWebRTC(socket, roomCode) {
             const newAudioTrack = stream.getAudioTracks()[0];
             const oldAudioTrack = localStreamRef.current?.getAudioTracks()[0];
 
-            if (oldAudioTrack && newAudioTrack) {
-                // Preserve the disabled state
-                newAudioTrack.enabled = oldAudioTrack.enabled;
-
-                Object.values(peersRef.current).forEach(peer => {
-                    peer.replaceTrack(oldAudioTrack, newAudioTrack, localStreamRef.current);
-                });
-
-                oldAudioTrack.stop();
-
-                const newStream = new MediaStream([
-                    ...localStreamRef.current.getVideoTracks(),
-                    newAudioTrack
-                ]);
-
-                localStreamRef.current = newStream;
-                setLocalStream(newStream);
-                setSelectedAudioInputDevice(deviceId);
+            if (!oldAudioTrack || !newAudioTrack) {
+                stream.getTracks().forEach(track => track.stop());
+                console.error('Error changing audio input: missing audio tracks');
+                return;
             }
+
+            // Preserve the disabled state
+            newAudioTrack.enabled = oldAudioTrack.enabled;
+
+            // Create and update local stream BEFORE replaceTrack
+            const newStream = new MediaStream([
+                ...localStreamRef.current.getVideoTracks(),
+                newAudioTrack
+            ]);
+
+            localStreamRef.current = newStream;
+            setLocalStream(newStream);
+            setSelectedAudioInputDevice(deviceId);
+
+            // Now replace tracks on all peers with updated stream
+            Object.values(peersRef.current).forEach(peer => {
+                if (peer && typeof peer.replaceTrack === 'function') {
+                    try {
+                        peer.replaceTrack(oldAudioTrack, newAudioTrack, newStream);
+                    } catch (err) {
+                        console.error('Error replacing audio track on peer:', err);
+                    }
+                }
+            });
+
+            // Stop old track after successful replacement
+            oldAudioTrack.stop();
         } catch (error) {
             console.error('Error changing audio input:', error);
         }
@@ -162,6 +181,41 @@ export function useWebRTC(socket, roomCode) {
     const changeAudioOutput = useCallback((deviceId) => {
         setSelectedAudioOutputDevice(deviceId);
     }, []);
+
+    // Check if browser supports screen sharing (no side effects, pure check)
+    const checkScreenShareSupport = useCallback(() => {
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isIOS = /iphone|ipad|ipod/.test(userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        
+        if (isIOS) {
+            return { supported: false, reason: 'iOS' };
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            return { supported: false, reason: 'browser' };
+        }
+
+        return { supported: true, reason: null };
+    }, []);
+
+    // Set error message when needed (only called from effects/handlers)
+    const setScreenShareErrorMessage = useCallback((reason) => {
+        if (reason === 'iOS') {
+            setScreenShareError('Screen sharing is not supported on iOS. Please use a desktop browser or Android Chrome.');
+        } else if (reason === 'browser') {
+            setScreenShareError('Screen sharing is not supported on this browser. Please use Chrome, Edge, or Firefox on desktop.');
+        } else {
+            setScreenShareError(null);
+        }
+    }, []);
+
+    const supportsScreenShare = useCallback(() => {
+        const check = checkScreenShareSupport();
+        if (!check.supported) {
+            setScreenShareErrorMessage(check.reason);
+        }
+        return check.supported;
+    }, [checkScreenShareSupport, setScreenShareErrorMessage]);
 
     const stopScreenShare = useCallback(async (originalVideoDevice) => {
         if (screenStream) {
@@ -179,22 +233,35 @@ export function useWebRTC(socket, roomCode) {
             const newVideoTrack = stream.getVideoTracks()[0];
             const currentVideoTrack = localStreamRef.current?.getVideoTracks()[0];
 
-            if (currentVideoTrack && newVideoTrack) {
-                newVideoTrack.enabled = currentVideoTrack.enabled;
-                Object.values(peersRef.current).forEach(peer => {
-                    if (typeof peer.replaceTrack === 'function') {
-                        try { peer.replaceTrack(currentVideoTrack, newVideoTrack, localStreamRef.current); } catch (err) { }
-                    }
-                });
-                currentVideoTrack.stop();
-
-                const newLocalStream = new MediaStream([
-                    ...localStreamRef.current.getAudioTracks(),
-                    newVideoTrack
-                ]);
-                localStreamRef.current = newLocalStream;
-                setLocalStream(newLocalStream);
+            if (!newVideoTrack || !currentVideoTrack) {
+                stream.getTracks().forEach(track => track.stop());
+                console.error('Error reverting to camera: missing video tracks');
+                return;
             }
+
+            newVideoTrack.enabled = currentVideoTrack.enabled;
+
+            // Create and update local stream BEFORE replaceTrack
+            const newLocalStream = new MediaStream([
+                ...localStreamRef.current.getAudioTracks(),
+                newVideoTrack
+            ]);
+            localStreamRef.current = newLocalStream;
+            setLocalStream(newLocalStream);
+
+            // Now replace tracks on all peers with updated stream
+            Object.values(peersRef.current).forEach(peer => {
+                if (peer && typeof peer.replaceTrack === 'function') {
+                    try {
+                        peer.replaceTrack(currentVideoTrack, newVideoTrack, newLocalStream);
+                    } catch (err) {
+                        console.error('Error replacing video track on peer:', err);
+                    }
+                }
+            });
+
+            // Stop old track after replacement
+            currentVideoTrack.stop();
         } catch (error) {
             console.error('Error reverting to camera:', error);
         }
@@ -208,45 +275,71 @@ export function useWebRTC(socket, roomCode) {
 
     const toggleScreenShare = useCallback(async () => {
         if (!isScreenSharing) {
+            // Check browser support first
+            if (!supportsScreenShare()) {
+                return { success: false, error: screenShareError };
+            }
+
             try {
                 const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 const screenVideoTrack = stream.getVideoTracks()[0];
                 const oldVideoTrack = localStreamRef.current?.getVideoTracks()[0];
 
-                if (oldVideoTrack && screenVideoTrack) {
-                    Object.values(peersRef.current).forEach(peer => {
-                        if (typeof peer.replaceTrack === 'function') {
-                            try { peer.replaceTrack(oldVideoTrack, screenVideoTrack, localStreamRef.current); } catch (err) { }
-                        }
-                    });
-
-                    oldVideoTrack.stop();
-
-                    const newStream = new MediaStream([
-                        ...localStreamRef.current.getAudioTracks(),
-                        screenVideoTrack
-                    ]);
-
-                    localStreamRef.current = newStream;
-                    setLocalStream(newStream);
-                    setScreenStream(stream);
-                    setIsScreenSharing(true);
-
-                    if (socket) {
-                        socket.emit('screen-share-start', roomCode);
-                    }
-
-                    screenVideoTrack.onended = () => {
-                        stopScreenShare(selectedVideoDevice);
-                    };
+                if (!screenVideoTrack || !oldVideoTrack) {
+                    stream.getTracks().forEach(track => track.stop());
+                    const errorMsg = 'Failed to initialize screen share: missing video track';
+                    setScreenShareError(errorMsg);
+                    return { success: false, error: errorMsg };
                 }
+
+                // Create and update local stream BEFORE replaceTrack
+                const newStream = new MediaStream([
+                    ...localStreamRef.current.getAudioTracks(),
+                    screenVideoTrack
+                ]);
+
+                localStreamRef.current = newStream;
+                setLocalStream(newStream);
+                setScreenStream(stream);
+                setIsScreenSharing(true);
+                setScreenShareError(null);
+
+                // Now replace tracks on all peers with updated stream
+                Object.values(peersRef.current).forEach(peer => {
+                    if (peer && typeof peer.replaceTrack === 'function') {
+                        try {
+                            peer.replaceTrack(oldVideoTrack, screenVideoTrack, newStream);
+                        } catch (err) {
+                            console.error('Error replacing video track on peer during screen share:', err);
+                        }
+                    }
+                });
+
+                // Stop old track after replacement
+                oldVideoTrack.stop();
+
+                if (socket) {
+                    socket.emit('screen-share-start', roomCode);
+                }
+
+                screenVideoTrack.onended = () => {
+                    stopScreenShare(selectedVideoDevice);
+                };
+
+                return { success: true };
             } catch (err) {
                 console.error("Error sharing screen:", err);
+                const errorMsg = err.name === 'NotAllowedError' 
+                    ? 'Screen share was cancelled' 
+                    : 'Failed to start screen sharing';
+                setScreenShareError(errorMsg);
+                return { success: false, error: errorMsg };
             }
         } else {
             await stopScreenShare(selectedVideoDevice);
+            return { success: true };
         }
-    }, [isScreenSharing, socket, roomCode, stopScreenShare, selectedVideoDevice]);
+    }, [isScreenSharing, socket, roomCode, stopScreenShare, selectedVideoDevice, screenShareError, supportsScreenShare]);
 
     const createPeer = useCallback((id, stream, isInitiator, displayName) => {
         const peer = new Peer({
@@ -305,6 +398,11 @@ export function useWebRTC(socket, roomCode) {
         const handleSignal = ({ from, signal, displayName }) => {
             let peer = peersRef.current[from];
             if (!peer) {
+                // Validate local stream exists before creating peer
+                if (!localStreamRef.current) {
+                    console.warn('Cannot create peer: local stream not initialized');
+                    return;
+                }
                 peer = createPeer(from, localStreamRef.current, false, displayName);
             }
             peer.signal(signal);
@@ -337,6 +435,6 @@ export function useWebRTC(socket, roomCode) {
         localStream, streams, initializeMedia, cleanup, joinUsers,
         videoDevices, selectedVideoDevice, changeCamera,
         audioInputDevices, selectedAudioInputDevice, changeAudioInput, audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput,
-        isScreenSharing, toggleScreenShare
+        isScreenSharing, toggleScreenShare, screenShareError, supportsScreenShare, checkScreenShareSupport
     };
 }

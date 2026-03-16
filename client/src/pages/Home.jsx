@@ -34,7 +34,7 @@ export default function Home() {
   const handleJoin = (e) => {
     e.preventDefault()
     if (joinCode.trim()) {
-      navigate(/room/)
+      navigate(`/room/${joinCode.trim()}`)
     }
   }
 

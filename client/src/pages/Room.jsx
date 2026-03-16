@@ -63,7 +63,7 @@ export default function RoomPage() {
         videoDevices, selectedVideoDevice, changeCamera,
         audioInputDevices, selectedAudioInputDevice, changeAudioInput,
         audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput,
-        isScreenSharing, toggleScreenShare
+        isScreenSharing, toggleScreenShare, screenShareError, supportsScreenShare, checkScreenShareSupport
     } = useWebRTC(socket, roomCode);
 
     const [joined, setJoined] = useState(false);
@@ -152,21 +152,33 @@ export default function RoomPage() {
             try {
                 await initializeMedia();
             } catch (err) {
-                // Ignore media error or show permission warning
-                console.error("No media devices");
+                console.error("Failed to get media devices:", err);
+                const errorMsg = err.name === 'NotAllowedError' 
+                    ? 'Camera/microphone permission denied. Please allow permissions and refresh.'
+                    : err.name === 'NotFoundError'
+                    ? 'No camera/microphone found. Please connect a device and refresh.'
+                    : 'Failed to access media devices: ' + err.message;
+                
+                if (mounted) {
+                    setError(errorMsg);
+                    return; // Exit early, don't join room without media
+                }
             }
+            
             if (!socket || !isConnected || !mounted) return;
 
             // Try to join the room
             socket.emit('join-room', roomCode, (response) => {
-                if (response.success) {
-                    setJoined(true);
-                    setRoomInfo(response.room);
-                    if (response.users) {
-                        joinUsers(response.users);
+                if (mounted) {
+                    if (response.success) {
+                        setJoined(true);
+                        setRoomInfo(response.room);
+                        if (response.users) {
+                            joinUsers(response.users);
+                        }
+                    } else {
+                        setError(response.error || 'Failed to join room');
                     }
-                } else {
-                    setError(response.error || 'Failed to join room');
                 }
             });
         }
@@ -664,13 +676,25 @@ export default function RoomPage() {
                     </div>
 
                     <button
-                        onClick={toggleScreenShare}
+                        onClick={async () => {
+                            if (supportsScreenShare()) {
+                                const result = await toggleScreenShare();
+                                if (result?.error && roomCode) {
+                                    setNotifications(prev => [...prev, result.error]);
+                                }
+                            } else if (screenShareError) {
+                                setNotifications(prev => [...prev, screenShareError]);
+                            }
+                        }}
+                        disabled={!checkScreenShareSupport().supported}
                         className={`p-3 sm:p-4 rounded-full flex items-center justify-center transition-all shadow-sm hover:shadow-md ${
-                            isScreenSharing 
+                            !checkScreenShareSupport().supported 
+                            ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-60'
+                            : isScreenSharing 
                             ? 'bg-indigo-500 hover:bg-indigo-600 text-white' 
                             : 'bg-[#3c4043] hover:bg-[#434649] text-white'
                         }`}
-                        title={isScreenSharing ? "Stop sharing screen" : "Share screen"}
+                        title={!checkScreenShareSupport().supported ? 'Screen sharing not supported on your browser' : isScreenSharing ? "Stop sharing screen" : "Share screen"}
                     >
                         {isScreenSharing ? <MonitorOff className="w-5 h-5" /> : <MonitorUp className="w-5 h-5" />}
                     </button>
