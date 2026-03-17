@@ -9,10 +9,12 @@ import RoomPage from './pages/Room'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
 import FeedbackPage from './pages/Feedback'
+import { Analytics } from "@vercel/analytics/react"
 
 export default function App() {
   return (
     <Routes>
+      <Analytics />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
       {/* Public / Auth Routes */}
