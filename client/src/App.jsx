@@ -13,40 +13,42 @@ import { Analytics } from "@vercel/analytics/react"
 
 export default function App() {
   return (
-    <Routes>
+    <>
       <Analytics />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* Public / Auth Routes */}
-      <Route path="/sign-in/*" element={<SignInPage />} />
-      <Route path="/sign-up/*" element={<SignUpPage />} />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/terms" element={<TermsOfService />} />
+        {/* Public / Auth Routes */}
+        <Route path="/sign-in/*" element={<SignInPage />} />
+        <Route path="/sign-up/*" element={<SignUpPage />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
 
-      {/* Protected Routes inside Layout */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/dashboard" element={<Home />} />
-        <Route path="/profile/*" element={<ProfilePage />} />
-        <Route path="/feedback" element={<FeedbackPage />} />
-      </Route>
+        {/* Protected Routes inside Layout */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Home />} />
+          <Route path="/profile/*" element={<ProfilePage />} />
+          <Route path="/feedback" element={<FeedbackPage />} />
+        </Route>
 
-      {/* Protected Routes without Layout (Fullscreen) */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <Outlet />
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/room/:roomCode" element={<RoomPage />} />
-      </Route>
-    </Routes>
+        {/* Protected Routes without Layout (Fullscreen) */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <Outlet />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/room/:roomCode" element={<RoomPage />} />
+        </Route>
+      </Routes>
+    </>
   )
 }
 
