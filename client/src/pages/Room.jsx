@@ -74,6 +74,7 @@ export default function RoomPage() {
         videoDevices, selectedVideoDevice, changeCamera,
         audioInputDevices, selectedAudioInputDevice, changeAudioInput,
         audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput,
+        setVideoEnabled,
         isScreenSharing, toggleScreenShare, screenShareError, supportsScreenShare, checkScreenShareSupport
     } = useWebRTC(socket, roomCode);
 
@@ -283,15 +284,15 @@ export default function RoomPage() {
         }
     };
 
-    const toggleVideo = () => {
-        if (localStream) {
-            localStream.getVideoTracks().forEach(track => track.enabled = !track.enabled);
-            const newMuted = !localStream.getVideoTracks()[0]?.enabled;
-            setIsVideoMuted(newMuted);
-            isVideoMutedRef.current = newMuted;
-            if (socket) {
-                socket.emit('video-toggle', roomCode, newMuted);
-            }
+    const toggleVideo = async () => {
+        const nextMuted = !isVideoMuted;
+        const success = await setVideoEnabled(!nextMuted);
+        if (!success) return;
+
+        setIsVideoMuted(nextMuted);
+        isVideoMutedRef.current = nextMuted;
+        if (socket) {
+            socket.emit('video-toggle', roomCode, nextMuted);
         }
     };
 

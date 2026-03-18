@@ -99,6 +99,20 @@ export function useWebRTC(socket, roomCode) {
         }
     }, []);
 
+    const clearTrackOnPeer = useCallback((peer, kind, context) => {
+        if (!peer || !kind) return;
+
+        const pc = peer._pc;
+        const senders = pc && typeof pc.getSenders === 'function' ? pc.getSenders() : [];
+        const matchingSender = senders.find(sender => sender.track && sender.track.kind === kind);
+
+        if (matchingSender && typeof matchingSender.replaceTrack === 'function') {
+            matchingSender.replaceTrack(null).catch(err => {
+                console.error(`Error clearing ${kind} sender (${context})`, err);
+            });
+        }
+    }, []);
+
     const initializeMedia = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -241,6 +255,87 @@ export function useWebRTC(socket, roomCode) {
     const changeAudioOutput = useCallback((deviceId) => {
         setSelectedAudioOutputDevice(deviceId);
     }, []);
+
+    const setVideoEnabled = useCallback(async (enabled) => {
+        const currentStream = localStreamRef.current;
+        if (!currentStream) return false;
+
+        const currentVideoTrack = currentStream.getVideoTracks()[0];
+
+        if (!enabled) {
+            if (currentVideoTrack) {
+                currentVideoTrack.enabled = false;
+
+                // For camera sources, fully stop the track to release hardware access.
+                if (!isScreenSharing && currentVideoTrack.readyState === 'live') {
+                    currentVideoTrack.stop();
+                }
+            }
+
+            Object.values(peersRef.current).forEach(peer => {
+                clearTrackOnPeer(peer, 'video', 'setVideoEnabled-off');
+            });
+
+            return true;
+        }
+
+        if (isScreenSharing) {
+            if (currentVideoTrack) {
+                currentVideoTrack.enabled = true;
+                Object.values(peersRef.current).forEach(peer => {
+                    replaceTrackOnPeer(peer, null, currentVideoTrack, currentStream, 'setVideoEnabled-on-screen');
+                });
+                return true;
+            }
+            return false;
+        }
+
+        try {
+            const constraints = {
+                video: (!selectedVideoDevice || selectedVideoDevice === 'default') ? {
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                } : {
+                    deviceId: { exact: selectedVideoDevice },
+                    width: { ideal: 1280, max: 1920 },
+                    height: { ideal: 720, max: 1080 },
+                    frameRate: { ideal: 24, max: 30 }
+                }
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const newVideoTrack = stream.getVideoTracks()[0];
+
+            if (!newVideoTrack) {
+                stream.getTracks().forEach(track => track.stop());
+                return false;
+            }
+
+            newVideoTrack.enabled = true;
+
+            const newStream = new MediaStream([
+                ...currentStream.getAudioTracks(),
+                newVideoTrack
+            ]);
+
+            localStreamRef.current = newStream;
+            setLocalStream(newStream);
+
+            Object.values(peersRef.current).forEach(peer => {
+                replaceTrackOnPeer(peer, currentVideoTrack || null, newVideoTrack, newStream, 'setVideoEnabled-on-camera');
+            });
+
+            if (currentVideoTrack && currentVideoTrack.readyState !== 'ended') {
+                currentVideoTrack.stop();
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error enabling camera:', error);
+            return false;
+        }
+    }, [isScreenSharing, selectedVideoDevice, clearTrackOnPeer, replaceTrackOnPeer]);
 
     // Check if browser supports screen sharing (no side effects, pure check)
     const checkScreenShareSupport = useCallback(() => {
@@ -583,6 +678,7 @@ export function useWebRTC(socket, roomCode) {
         localStream, streams, initializeMedia, cleanup, joinUsers,
         videoDevices, selectedVideoDevice, changeCamera,
         audioInputDevices, selectedAudioInputDevice, changeAudioInput, audioOutputDevices, selectedAudioOutputDevice, changeAudioOutput,
+        setVideoEnabled,
         isScreenSharing, toggleScreenShare, screenShareError, supportsScreenShare, checkScreenShareSupport
     };
 }
